@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Tuition Manager</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --primary: #1a1a2e;
+    --accent: #4f8ef7;
+    --bg: #f5f7fb;
+    --card: #ffffff;
+    --muted: #7a7a9a;
+    --text: #1d2238;
+    --border: #e2e8f2;
+    --danger: #e74c3c;
+    --success: #27ae60;
+  }
+  html, body {
+    width: 100%;
+    min-height: 100%;
+    background: var(--bg);
+    font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    color: var(--text);
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+  .hidden { display: none !important; }
+  #login-screen {
+    min-height: 100vh;
+    background: var(--primary);
+    color: #fff;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: 24px;
+  }
+  .login-title { font-size: 28px; font-weight: 700; margin-bottom: 10px; }
+  .login-sub { font-size: 15px; color: rgba(255,255,255,0.7); margin-bottom: 30px; line-height: 1.5; }
+  .btn-google {
+    border: none;
+    border-radius: 14px;
+    background: #fff;
+    color: var(--text);
+    font-weight: 700;
+    font-size: 17px;
+    padding: 16px 24px;
+    cursor: pointer;
+    width: 100%;
+    max-width: 320px;
+  }
+  #main-app { min-height: 100vh; display: flex; flex-direction: column; }
+  .topbar {
+    background: var(--primary);
+    color: #fff;
+    padding: 18px 16px 14px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.12);
+  }
+  .topbar-row { display: flex; justify-content: space-between; align-items: center; }
+  .topbar-title { font-size: 22px; font-weight: 700; }
+  .topbar-sub { margin-top: 3px; color: rgba(255,255,255,0.65); font-size: 13px; }
+  .avatar {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .content { padding: 18px 14px 26px; }
+  .screen { display: none; }
+  .screen.active { display: block; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 16px;
+    box-shadow: 0 2px 8px rgba(20, 20, 40, 0.06);
+    margin-bottom: 12px;
+  }
+  .section-title { font-size: 12px; letter-spacing: 1.2px; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; font-weight: 700; }
+  .input, .select {
+    width: 100%;
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    height: 48px;
+    padding: 0 12px;
+    font-size: 15px;
+    color: var(--text);
+    margin-top: 8px;
+    background: #fff;
+  }
+  .input:focus, .select:focus { outline: none; border-color: var(--accent); }
+  .form-row { margin-bottom: 12px; }
+  .btn {
+    border: none;
+    border-radius: 12px;
+    height: 48px;
+    padding: 0 14px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .btn-primary { background: var(--primary); color: #fff; width: 100%; }
+  .btn-secondary { background: #eef2ff; color: #22326e; width: 100%; margin-top: 8px; }
+  .btn-danger { background: #fff1f1; color: var(--danger); width: 100%; margin-top: 8px; }
+  .batch-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px;
+    margin-bottom: 8px;
+    background: #fff;
+  }
+  .batch-meta { color: var(--muted); font-size: 13px; margin-top: 3px; }
+  .student-item {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px;
+    margin-bottom: 10px;
+    background: #fff;
+  }
+  .student-row-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+  .student-name { font-weight: 700; }
+  .student-meta { font-size: 13px; color: var(--muted); line-height: 1.4; }
+  .status {
+    padding: 6px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+    border: 1px solid transparent;
+    cursor: pointer;
+  }
+  .paid { background: #eaf9f0; color: #1c7f4e; border-color: #b5e9cb; }
+  .unpaid { background: #fff1f1; color: #b13a3a; border-color: #ffcccc; }
+  .inline-actions { display: flex; gap: 8px; margin-top: 10px; }
+  .inline-actions button {
+    border: none;
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .action-edit { background: #eef2ff; color: #22326e; }
+  .action-delete { background: #fff1f1; color: var(--danger); }
+  .top-actions { display: flex; gap: 8px; margin-bottom: 10px; }
+  .top-actions .btn { width: auto; padding: 0 14px; }
+  .hint { font-size: 12px; color: var(--muted); margin-top: 8px; }
+  .toast {
+    position: fixed;
+    left: 50%;
+    bottom: 30px;
+    transform: translateX(-50%) translateY(120px);
+    background: var(--primary);
+    color: #fff;
+    padding: 12px 18px;
+    border-radius: 999px;
+    font-size: 14px;
+    transition: transform 0.2s ease;
+    z-index: 1000;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+  .menu {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    display: none;
+    align-items: flex-end;
+    z-index: 999;
+  }
+  .menu.open { display: flex; }
+  .menu-card {
+    width: 100%;
+    background: #fff;
+    border-radius: 16px 16px 0 0;
+    padding: 20px;
+  }
+</style>
+</head>
+<body>
+
+<div id="login-screen">
+  <div class="login-title">Tuition Manager</div>
+  <div class="login-sub">Manage batches, students and fee status in Google Sheets.</div>
+  <button class="btn-google" onclick="signIn()">Sign in with Google</button>
+</div>
+
+<div id="main-app" class="hidden">
+  <div class="topbar">
+    <div class="topbar-row">
+      <div>
+        <div class="topbar-title">Tuition Manager</div>
+        <div class="topbar-sub">MasterTuitionSheet</div>
+      </div>
+      <div class="avatar" id="user-avatar" onclick="openMenu()">?</div>
+    </div>
+  </div>
+
+  <div class="content">
+    <div id="screen-setup" class="screen active">
+      <div class="card">
+        <div class="section-title">Initial Setup</div>
+        <div class="form-row">
+          <label for="batch-count">How many tuition batches?</label>
+          <input class="input" id="batch-count" type="number" min="1" placeholder="e.g. 3">
+        </div>
+        <button class="btn btn-primary" onclick="generateBatchForms()">Continue</button>
+      </div>
+      <div id="batch-forms"></div>
+    </div>
+
+    <div id="screen-batches" class="screen">
+      <div class="top-actions">
+        <button class="btn btn-secondary" onclick="showSetup()">Edit Batches</button>
+      </div>
+      <div class="card">
+        <div class="section-title">Select Batch</div>
+        <div id="batch-list"></div>
+      </div>
+    </div>
+
+    <div id="screen-students" class="screen">
+      <div class="top-actions">
+        <button class="btn btn-secondary" onclick="showBatches()">Back</button>
+        <button class="btn btn-primary" onclick="openStudentForm()">Add Student</button>
+      </div>
+      <div class="card">
+        <div class="section-title" id="students-title">Students</div>
+        <div id="student-list"></div>
+      </div>
+    </div>
+
+    <div id="screen-student-form" class="screen">
+      <div class="top-actions">
+        <button class="btn btn-secondary" onclick="showStudents()">Back</button>
+      </div>
+      <div class="card">
+        <div class="section-title" id="student-form-title">Add Student</div>
+        <div class="form-row">
+          <label>Student Name *</label>
+          <input id="student-name" class="input" placeholder="Student full name">
+        </div>
+        <div class="form-row">
+          <label>Student WhatsApp *</label>
+          <input id="student-wa" class="input" placeholder="e.g. 57123456">
+        </div>
+        <div class="form-row">
+          <label>Parent Name</label>
+          <input id="parent-name" class="input" placeholder="Optional">
+        </div>
+        <div class="form-row">
+          <label>Parent WhatsApp</label>
+          <input id="parent-wa" class="input" placeholder="Optional">
+        </div>
+        <button class="btn btn-primary" onclick="saveStudent()">Save Student</button>
+        <div class="hint">* Required fields</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="menu" id="menu" onclick="closeMenu()">
+  <div class="menu-card" onclick="event.stopPropagation()">
+    <div id="menu-name" style="font-weight:700;"></div>
+    <div id="menu-email" style="font-size:13px;color:#7a7a9a;margin-bottom:12px;"></div>
+    <button class="btn btn-danger" onclick="signOut()">Sign out</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script>
+  var CLIENT_ID = "920543301524-69idp58am0pr3fnqf4etlghehirakp17.apps.googleusercontent.com";
+  var SHEET_ID = "1Zi6bYQNKUbv3-96saxkc5Qtx6ZFMPHB2yekTSWd3nBs";
+  var SCOPES = "https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email";
+
+  var accessToken = null;
+  var tokenClient = null;
+  var state = {
+    user: null,
+    batches: [],
+    selectedBatch: null,
+    students: [],
+    editingStudentRow: null
+  };
+
+  var BATCH_HEADERS = ["Batch Name", "Day", "Time"];
+  var STUDENT_HEADERS = ["Student Name", "Student WhatsApp", "Parent Name", "Parent WhatsApp", "Day", "Time", "Payment Status", "Updated At"];
+
+  window.onload = function() {
+    var savedToken = sessionStorage.getItem("accessToken");
+    var savedUser = sessionStorage.getItem("userInfo");
+    if (savedToken && savedUser) {
+      accessToken = savedToken;
+      state.user = JSON.parse(savedUser);
+      bootApp();
+    }
+  };
+
+  function signIn() {
+    if (!CLIENT_ID || CLIENT_ID.indexOf("PUT_YOUR") === 0) {
+      showToast("Set CLIENT_ID in code first.", "error");
+      return;
+    }
+    tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: CLIENT_ID,
+      scope: SCOPES,
+      callback: function(resp) {
+        if (resp.error) { showToast("Sign in failed", "error"); return; }
+        accessToken = resp.access_token;
+        sessionStorage.setItem("accessToken", accessToken);
+        fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+          headers: { Authorization: "Bearer " + accessToken }
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(user) {
+          state.user = user;
+          sessionStorage.setItem("userInfo", JSON.stringify(user));
+          bootApp();
+        })
+        .catch(function() { showToast("Cannot fetch user profile", "error"); });
+      }
+    });
+    tokenClient.requestAccessToken({ prompt: "consent" });
+  }
+
+  function bootApp() {
+    document.getElementById("login-screen").classList.add("hidden");
+    document.getElementById("main-app").classList.remove("hidden");
+    document.getElementById("user-avatar").textContent = (state.user.name || state.user.email || "?")[0].toUpperCase();
+    document.getElementById("menu-name").textContent = state.user.name || "";
+    document.getElementById("menu-email").textContent = state.user.email || "";
+    loadBatches();
+  }
+
+  function signOut() {
+    sessionStorage.clear();
+    accessToken = null;
+    state = { user: null, batches: [], selectedBatch: null, students: [], editingStudentRow: null };
+    closeMenu();
+    document.getElementById("main-app").classList.add("hidden");
+    document.getElementById("login-screen").classList.remove("hidden");
+    showToast("Signed out", "success");
+  }
+
+  function openMenu() { document.getElementById("menu").classList.add("open"); }
+  function closeMenu() { document.getElementById("menu").classList.remove("open"); }
+
+  function showScreen(id) {
+    document.querySelectorAll(".screen").forEach(function(el) { el.classList.remove("active"); });
+    document.getElementById("screen-" + id).classList.add("active");
+    window.scrollTo(0, 0);
+  }
+
+  function showSetup() {
+    fillSetupFromCurrent();
+    showScreen("setup");
+  }
+  function showBatches() { renderBatchList(); showScreen("batches"); }
+  function showStudents() { renderStudents(); showScreen("students"); }
+
+  function fillSetupFromCurrent() {
+    document.getElementById("batch-count").value = state.batches.length || "";
+    var forms = document.getElementById("batch-forms");
+    forms.innerHTML = "";
+    if (!state.batches.length) return;
+    state.batches.forEach(function(batch, i) {
+      forms.appendChild(buildBatchCard(i + 1, batch.name, batch.day, batch.time));
+    });
+    var saveBtn = document.createElement("button");
+    saveBtn.className = "btn btn-primary";
+    saveBtn.style.marginTop = "12px";
+    saveBtn.textContent = "Save Batch Setup";
+    saveBtn.onclick = saveBatchSetup;
+    forms.appendChild(saveBtn);
+  }
+
+  function generateBatchForms() {
+    var count = parseInt(document.getElementById("batch-count").value, 10);
+    if (isNaN(count) || count < 1) {
+      showToast("Enter a valid batch count", "error");
+      return;
+    }
+    var forms = document.getElementById("batch-forms");
+    forms.innerHTML = "";
+    for (var i = 1; i <= count; i++) {
+      forms.appendChild(buildBatchCard(i, "", "", ""));
+    }
+    var saveBtn = document.createElement("button");
+    saveBtn.className = "btn btn-primary";
+    saveBtn.style.marginTop = "12px";
+    saveBtn.textContent = "Save Batch Setup";
+    saveBtn.onclick = saveBatchSetup;
+    forms.appendChild(saveBtn);
+  }
+
+  function buildBatchCard(index, name, day, time) {
+    var wrap = document.createElement("div");
+    wrap.className = "card";
+    wrap.innerHTML =
+      "<div class='section-title'>Batch " + index + "</div>" +
+      "<div class='form-row'><label>Batch Name</label><input class='input batch-name' value='" + escapeHtml(name) + "' placeholder='e.g. Grade 8 Red'></div>" +
+      "<div class='form-row'><label>Day</label><input class='input batch-day' value='" + escapeHtml(day) + "' placeholder='e.g. Monday'></div>" +
+      "<div class='form-row'><label>Time</label><input class='input batch-time' value='" + escapeHtml(time) + "' placeholder='e.g. 16:00 - 17:30'></div>";
+    return wrap;
+  }
+
+  function saveBatchSetup() {
+    var names = Array.from(document.querySelectorAll(".batch-name"));
+    var days = Array.from(document.querySelectorAll(".batch-day"));
+    var times = Array.from(document.querySelectorAll(".batch-time"));
+    if (!names.length) { showToast("Generate batch forms first", "error"); return; }
+
+    var batches = [];
+    for (var i = 0; i < names.length; i++) {
+      var n = names[i].value.trim();
+      var d = days[i].value.trim();
+      var t = times[i].value.trim();
+      if (!n || !d || !t) {
+        showToast("Batch name/day/time are required", "error");
+        return;
+      }
+      batches.push({ name: n, day: d, time: t, tabName: toTabName(n) });
+    }
+
+    ensureBatchesAndTabs(batches)
+      .then(function() {
+        state.batches = batches;
+        renderBatchList();
+        showScreen("batches");
+        showToast("Batch setup saved", "success");
+      })
+      .catch(function(err) {
+        showToast(err.message || "Failed to save setup", "error");
+      });
+  }
+
+  function loadBatches() {
+    if (!SHEET_ID || SHEET_ID.indexOf("PUT_YOUR") === 0) {
+      showToast("Set SHEET_ID in code first.", "error");
+      showScreen("setup");
+      return;
+    }
+    readRange("Batches!A2:C500")
+      .then(function(values) {
+        if (!values || !values.length) {
+          showScreen("setup");
+          return;
+        }
+        state.batches = values
+          .filter(function(r) { return r[0]; })
+          .map(function(r) {
+            return { name: r[0] || "", day: r[1] || "", time: r[2] || "", tabName: toTabName(r[0] || "") };
+          });
+        renderBatchList();
+        showScreen("batches");
+      })
+      .catch(function() {
+        showScreen("setup");
+      });
+  }
+
+  function renderBatchList() {
+    var list = document.getElementById("batch-list");
+    list.innerHTML = "";
+    if (!state.batches.length) {
+      list.textContent = "No batches configured yet.";
+      return;
+    }
+    state.batches.forEach(function(batch) {
+      var item = document.createElement("div");
+      item.className = "batch-item";
+      var left = document.createElement("div");
+      var title = document.createElement("div");
+      title.style.fontWeight = "700";
+      title.textContent = batch.name;
+      var meta = document.createElement("div");
+      meta.className = "batch-meta";
+      meta.textContent = batch.day + " • " + batch.time;
+      left.appendChild(title);
+      left.appendChild(meta);
+      var btn = document.createElement("button");
+      btn.className = "btn btn-primary";
+      btn.style.width = "auto";
+      btn.textContent = "Open";
+      btn.onclick = function() { openBatch(batch); };
+      item.appendChild(left);
+      item.appendChild(btn);
+      list.appendChild(item);
+    });
+  }
+
+  function openBatch(batch) {
+    state.selectedBatch = batch;
+    state.editingStudentRow = null;
+    document.getElementById("students-title").textContent = batch.name + " • " + batch.day + " • " + batch.time;
+    loadStudents();
+  }
+
+  function loadStudents() {
+    var tab = state.selectedBatch.tabName;
+    readRange(tab + "!A2:H1000")
+      .then(function(values) {
+        state.students = (values || []).map(function(r, idx) {
+          return {
+            row: idx + 2,
+            studentName: r[0] || "",
+            studentWhatsapp: r[1] || "",
+            parentName: r[2] || "",
+            parentWhatsapp: r[3] || "",
+            day: r[4] || state.selectedBatch.day,
+            time: r[5] || state.selectedBatch.time,
+            paymentStatus: r[6] || "Not Paid",
+            updatedAt: r[7] || ""
+          };
+        }).filter(function(s) { return s.studentName; });
+        renderStudents();
+        showScreen("students");
+      })
+      .catch(function() { showToast("Failed to load students", "error"); });
+  }
+
+  function renderStudents() {
+    var list = document.getElementById("student-list");
+    list.innerHTML = "";
+    if (!state.students.length) {
+      list.textContent = "No students in this batch yet.";
+      return;
+    }
+    state.students.forEach(function(student) {
+      var item = document.createElement("div");
+      item.className = "student-item";
+      var top = document.createElement("div");
+      top.className = "student-row-top";
+
+      var nameEl = document.createElement("div");
+      nameEl.className = "student-name";
+      nameEl.textContent = student.studentName;
+
+      var status = document.createElement("button");
+      var paid = student.paymentStatus === "Paid";
+      status.className = "status " + (paid ? "paid" : "unpaid");
+      status.textContent = paid ? "Paid" : "Not Paid";
+      status.onclick = function() { togglePayment(student); };
+
+      top.appendChild(nameEl);
+      top.appendChild(status);
+
+      var meta = document.createElement("div");
+      meta.className = "student-meta";
+      meta.textContent = "Student WA: " + (student.studentWhatsapp || "-") +
+        " | Parent: " + (student.parentName || "-") +
+        " | Parent WA: " + (student.parentWhatsapp || "-");
+
+      var actions = document.createElement("div");
+      actions.className = "inline-actions";
+      var editBtn = document.createElement("button");
+      editBtn.className = "action-edit";
+      editBtn.textContent = "Edit";
+      editBtn.onclick = function() { openStudentForm(student); };
+
+      var delBtn = document.createElement("button");
+      delBtn.className = "action-delete";
+      delBtn.textContent = "Delete";
+      delBtn.onclick = function() { deleteStudent(student); };
+
+      actions.appendChild(editBtn);
+      actions.appendChild(delBtn);
+
+      item.appendChild(top);
+      item.appendChild(meta);
+      item.appendChild(actions);
+      list.appendChild(item);
+    });
+  }
+
+  function openStudentForm(student) {
+    state.editingStudentRow = student ? student.row : null;
+    document.getElementById("student-form-title").textContent = student ? "Edit Student" : "Add Student";
+    document.getElementById("student-name").value = student ? student.studentName : "";
+    document.getElementById("student-wa").value = student ? student.studentWhatsapp : "";
+    document.getElementById("parent-name").value = student ? student.parentName : "";
+    document.getElementById("parent-wa").value = student ? student.parentWhatsapp : "";
+    showScreen("student-form");
+  }
+
+  function saveStudent() {
+    var studentName = document.getElementById("student-name").value.trim();
+    var studentWa = document.getElementById("student-wa").value.trim();
+    var parentName = document.getElementById("parent-name").value.trim();
+    var parentWa = document.getElementById("parent-wa").value.trim();
+
+    if (!studentName || !studentWa) {
+      showToast("Student name and WhatsApp are required", "error");
+      return;
+    }
+
+    var payload = [
+      studentName,
+      studentWa,
+      parentName,
+      parentWa,
+      state.selectedBatch.day,
+      state.selectedBatch.time,
+      "Not Paid",
+      new Date().toISOString()
+    ];
+
+    var tab = state.selectedBatch.tabName;
+    var duplicate = state.students.some(function(s) {
+      return s.studentWhatsapp === studentWa && s.row !== state.editingStudentRow;
+    });
+    if (duplicate) {
+      showToast("Student WhatsApp already exists in this batch", "error");
+      return;
+    }
+
+    var task;
+    if (state.editingStudentRow) {
+      var existing = state.students.find(function(s) { return s.row === state.editingStudentRow; });
+      if (existing && existing.paymentStatus === "Paid") payload[6] = "Paid";
+      var range = tab + "!A" + state.editingStudentRow + ":H" + state.editingStudentRow;
+      task = writeRange(range, [payload]);
+    } else {
+      task = appendRow(tab + "!A:H", payload);
+    }
+
+    task.then(function() {
+      state.editingStudentRow = null;
+      showToast("Student saved", "success");
+      loadStudents();
+    }).catch(function() {
+      showToast("Failed to save student", "error");
+    });
+  }
+
+  function togglePayment(student) {
+    var next = student.paymentStatus === "Paid" ? "Not Paid" : "Paid";
+    var range = state.selectedBatch.tabName + "!G" + student.row + ":H" + student.row;
+    writeRange(range, [[next, new Date().toISOString()]])
+      .then(function() {
+        student.paymentStatus = next;
+        renderStudents();
+        showToast("Payment updated", "success");
+      })
+      .catch(function() { showToast("Failed to update payment", "error"); });
+  }
+
+  function deleteStudent(student) {
+    var range = state.selectedBatch.tabName + "!A" + student.row + ":H" + student.row;
+    writeRange(range, [["", "", "", "", "", "", "", ""]])
+      .then(function() {
+        showToast("Student deleted", "success");
+        loadStudents();
+      })
+      .catch(function() { showToast("Failed to delete student", "error"); });
+  }
+
+  function ensureBatchesAndTabs(batches) {
+    return getSheetTitles()
+      .then(function(titles) {
+        var reqs = [];
+        if (titles.indexOf("Batches") === -1) {
+          reqs.push({ addSheet: { properties: { title: "Batches" } } });
+        }
+        batches.forEach(function(b) {
+          if (titles.indexOf(b.tabName) === -1) {
+            reqs.push({ addSheet: { properties: { title: b.tabName } } });
+          }
+        });
+        var chain = Promise.resolve();
+        if (reqs.length) {
+          chain = batchUpdate(reqs).then(function() { return getSheetTitles(); });
+        }
+        return chain;
+      })
+      .then(function() {
+        return Promise.all([
+          writeRange("Batches!A1:C1", [BATCH_HEADERS]),
+          writeRange("Batches!A2:C1000", [])
+        ]).catch(function() { return Promise.resolve(); });
+      })
+      .then(function() {
+        return clearRange("Batches!A2:C1000");
+      })
+      .then(function() {
+        var rows = batches.map(function(b) { return [b.name, b.day, b.time]; });
+        return writeRange("Batches!A2:C" + (rows.length + 1), rows);
+      })
+      .then(function() {
+        return Promise.all(batches.map(function(b) {
+          return writeRange(b.tabName + "!A1:H1", [STUDENT_HEADERS]);
+        }));
+      });
+  }
+
+  function toTabName(name) {
+    var clean = (name || "Batch").replace(/[\[\]\*\/\\\?\:]/g, " ").trim();
+    return clean.slice(0, 90) || "Batch";
+  }
+
+  function getSheetTitles() {
+    return apiRequest("https://sheets.googleapis.com/v4/spreadsheets/" + SHEET_ID + "?fields=sheets.properties.title")
+      .then(function(data) {
+        var list = (((data || {}).sheets) || []).map(function(s) { return s.properties.title; });
+        return list;
+      });
+  }
+
+  function batchUpdate(requests) {
+    return apiRequest("https://sheets.googleapis.com/v4/spreadsheets/" + SHEET_ID + ":batchUpdate", {
+      method: "POST",
+      body: JSON.stringify({ requests: requests })
+    });
+  }
+
+  function readRange(range) {
+    var url = "https://sheets.googleapis.com/v4/spreadsheets/" + SHEET_ID + "/values/" + encodeURIComponent(range);
+    return apiRequest(url).then(function(data) { return data.values || []; });
+  }
+
+  function writeRange(range, values) {
+    var url = "https://sheets.googleapis.com/v4/spreadsheets/" + SHEET_ID + "/values/" + encodeURIComponent(range) + "?valueInputOption=RAW";
+    return apiRequest(url, {
+      method: "PUT",
+      body: JSON.stringify({ values: values })
+    });
+  }
+
+  function clearRange(range) {
+    var url = "https://sheets.googleapis.com/v4/spreadsheets/" + SHEET_ID + "/values/" + encodeURIComponent(range) + ":clear";
+    return apiRequest(url, {
+      method: "POST",
+      body: JSON.stringify({})
+    });
+  }
+
+  function appendRow(range, row) {
+    var url = "https://sheets.googleapis.com/v4/spreadsheets/" + SHEET_ID + "/values/" + encodeURIComponent(range) + ":append?valueInputOption=RAW";
+    return apiRequest(url, {
+      method: "POST",
+      body: JSON.stringify({ values: [row] })
+    });
+  }
+
+  function apiRequest(url, options) {
+    options = options || {};
+    if (!accessToken) return Promise.reject(new Error("Not signed in"));
+    options.headers = Object.assign({
+      Authorization: "Bearer " + accessToken,
+      "Content-Type": "application/json"
+    }, options.headers || {});
+    return fetch(url, options)
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        if (data.error) throw new Error(data.error.message || "API error");
+        return data;
+      });
+  }
+
+  function escapeHtml(str) {
+    return String(str || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
+  function showToast(msg, type) {
+    var toast = document.getElementById("toast");
+    toast.textContent = msg;
+    toast.style.background = type === "error" ? "#c0392b" : (type === "success" ? "#1f7a4a" : "#1a1a2e");
+    toast.className = "toast show";
+    setTimeout(function() { toast.className = "toast"; }, 2200);
+  }
+</script>
+</body>
+</html>
