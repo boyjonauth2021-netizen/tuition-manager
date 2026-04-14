@@ -162,6 +162,37 @@
   .action-delete { background: #fff1f1; color: var(--danger); }
   .top-actions { display: flex; gap: 8px; margin-bottom: 10px; }
   .top-actions .btn { width: auto; padding: 0 14px; }
+  .action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .action-tile {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: #fff;
+    padding: 14px;
+    font-weight: 700;
+    text-align: left;
+    cursor: pointer;
+  }
+  .action-tile small { display: block; margin-top: 6px; color: var(--muted); font-weight: 500; }
+  .month-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .month-btn {
+    border: 1px solid var(--border);
+    background: #fff;
+    border-radius: 10px;
+    padding: 10px 8px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .month-btn.active { border-color: var(--accent); background: #edf3ff; color: #1b3f9b; }
+  .big-toggle {
+    height: 44px;
+    min-width: 126px;
+    border-radius: 12px;
+    border: none;
+    cursor: pointer;
+    font-size: 15px;
+    font-weight: 700;
+  }
+  .portal-wrap { max-width: 680px; margin: 24px auto; padding: 0 14px; }
   .hint { font-size: 12px; color: var(--muted); margin-top: 8px; }
   .toast {
     position: fixed;
@@ -240,14 +271,72 @@
       </div>
     </div>
 
-    <div id="screen-students" class="screen">
+    <div id="screen-batch-options" class="screen">
       <div class="top-actions">
         <button class="btn btn-secondary" onclick="showBatches()">Back</button>
-        <button class="btn btn-primary" onclick="openStudentForm()">Add Student</button>
+      </div>
+      <div class="card">
+        <div class="section-title" id="batch-options-title">Batch Options</div>
+        <div class="action-grid">
+          <button class="action-tile" onclick="openStudentManagement()">
+            Modify Student Details
+            <small>Add / edit / delete students</small>
+          </button>
+          <button class="action-tile" onclick="showPayments()">
+            Payments
+            <small>Pick month and mark paid/not paid</small>
+          </button>
+          <button class="action-tile" onclick="textParentBroadcast()">
+            Text Parent on WhatsApp
+            <small>Opens WhatsApp chat for each parent</small>
+          </button>
+          <button class="action-tile" onclick="copyStudentIntakeLink()">
+            Share Student Intake Link
+            <small>Students submit own details</small>
+          </button>
+        </div>
+        <button class="btn btn-secondary" style="margin-top:10px;" onclick="openMySheet()">Open My Sheet</button>
+      </div>
+    </div>
+
+    <div id="screen-students" class="screen">
+      <div class="top-actions">
+        <button class="btn btn-secondary" onclick="showBatchOptions()">Back</button>
+        <button class="btn btn-primary" onclick="showBulkAdd()">Add Students</button>
       </div>
       <div class="card">
         <div class="section-title" id="students-title">Students</div>
         <div id="student-list"></div>
+      </div>
+    </div>
+
+    <div id="screen-bulk-add" class="screen">
+      <div class="top-actions">
+        <button class="btn btn-secondary" onclick="showStudents()">Back</button>
+      </div>
+      <div class="card">
+        <div class="section-title">Bulk Add Students</div>
+        <div class="form-row">
+          <label>How many students to add?</label>
+          <input id="student-count" class="input" type="number" min="1" placeholder="e.g. 5">
+        </div>
+        <button class="btn btn-primary" onclick="generateStudentForms()">Generate Forms</button>
+      </div>
+      <div id="bulk-student-forms"></div>
+    </div>
+
+    <div id="screen-payments" class="screen">
+      <div class="top-actions">
+        <button class="btn btn-secondary" onclick="showBatchOptions()">Back</button>
+      </div>
+      <div class="card">
+        <div class="section-title">Payments by Month</div>
+        <div id="payments-title" class="batch-meta" style="margin-bottom:10px;"></div>
+        <div class="month-grid" id="month-grid"></div>
+      </div>
+      <div class="card">
+        <div class="section-title" id="payment-list-title">Student Payments</div>
+        <div id="payment-list"></div>
       </div>
     </div>
 
@@ -280,6 +369,21 @@
   </div>
 </div>
 
+<div id="student-portal" class="hidden">
+  <div class="portal-wrap">
+    <div class="card">
+      <div class="section-title">Student Self Registration</div>
+      <div id="portal-batch-label" class="batch-meta" style="margin-bottom:8px;"></div>
+      <div class="form-row"><label>Student Name *</label><input id="portal-student-name" class="input"></div>
+      <div class="form-row"><label>Student WhatsApp *</label><input id="portal-student-wa" class="input"></div>
+      <div class="form-row"><label>Parent Name</label><input id="portal-parent-name" class="input"></div>
+      <div class="form-row"><label>Parent WhatsApp</label><input id="portal-parent-wa" class="input"></div>
+      <button class="btn btn-primary" onclick="submitPortalStudent()">Submit Details</button>
+      <div class="hint">This link is for students to submit their own details.</div>
+    </div>
+  </div>
+</div>
+
 <div class="menu" id="menu" onclick="closeMenu()">
   <div class="menu-card" onclick="event.stopPropagation()">
     <div id="menu-name" style="font-weight:700;"></div>
@@ -295,6 +399,7 @@
 <script>
   var CLIENT_ID = "920543301524-69idp58am0pr3fnqf4etlghehirakp17.apps.googleusercontent.com";
   var SCOPES = "https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email";
+  var STUDENT_INTAKE_ENDPOINT = "";
 
   var accessToken = null;
   var tokenClient = null;
@@ -304,13 +409,20 @@
     batches: [],
     selectedBatch: null,
     students: [],
-    editingStudentRow: null
+    editingStudentRow: null,
+    selectedMonth: "January"
   };
 
-  var BATCH_HEADERS = ["Batch Name", "Day", "Time"];
-  var STUDENT_HEADERS = ["Student Name", "Student WhatsApp", "Parent Name", "Parent WhatsApp", "Day", "Time", "Payment Status", "Updated At"];
+  var MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  var BATCH_HEADERS = ["Batch Name", "Day", "Time", "Fees"];
+  var STUDENT_HEADERS = ["Student Name", "Student WhatsApp", "Parent Name", "Parent WhatsApp", "Day", "Time", "Fees", "Updated At"].concat(MONTHS);
 
   window.onload = function() {
+    var params = new URLSearchParams(window.location.search);
+    if (params.get("mode") === "student") {
+      initStudentPortal();
+      return;
+    }
     var savedToken = sessionStorage.getItem("accessToken");
     var savedUser = sessionStorage.getItem("userInfo");
     if (savedToken && savedUser) {
@@ -366,7 +478,7 @@
   function signOut() {
     sessionStorage.clear();
     accessToken = null;
-    state = { user: null, sheetId: null, batches: [], selectedBatch: null, students: [], editingStudentRow: null };
+    state = { user: null, sheetId: null, batches: [], selectedBatch: null, students: [], editingStudentRow: null, selectedMonth: "January" };
     closeMenu();
     document.getElementById("main-app").classList.add("hidden");
     document.getElementById("login-screen").classList.remove("hidden");
@@ -380,6 +492,52 @@
     }
     var url = "https://docs.google.com/spreadsheets/d/" + encodeURIComponent(state.sheetId) + "/edit";
     window.open(url, "_blank");
+  }
+
+  function initStudentPortal() {
+    document.getElementById("login-screen").classList.add("hidden");
+    document.getElementById("main-app").classList.add("hidden");
+    document.getElementById("student-portal").classList.remove("hidden");
+    var params = new URLSearchParams(window.location.search);
+    var batch = params.get("batch") || "";
+    var teacher = params.get("teacher") || "";
+    document.getElementById("portal-batch-label").textContent = "Batch: " + batch + (teacher ? " • Teacher: " + teacher : "");
+  }
+
+  function submitPortalStudent() {
+    var params = new URLSearchParams(window.location.search);
+    var payload = {
+      teacherEmail: params.get("teacher") || "",
+      batch: params.get("batch") || "",
+      studentName: document.getElementById("portal-student-name").value.trim(),
+      studentWhatsapp: document.getElementById("portal-student-wa").value.trim(),
+      parentName: document.getElementById("portal-parent-name").value.trim(),
+      parentWhatsapp: document.getElementById("portal-parent-wa").value.trim()
+    };
+    if (!payload.studentName || !payload.studentWhatsapp || !payload.batch) {
+      showToast("Fill required fields first", "error");
+      return;
+    }
+    if (!STUDENT_INTAKE_ENDPOINT) {
+      showToast("Student link endpoint not configured yet.", "error");
+      return;
+    }
+    fetch(STUDENT_INTAKE_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(resp) {
+      if (resp && resp.ok) {
+        showToast("Details submitted successfully", "success");
+      } else {
+        showToast((resp && resp.message) || "Submission failed", "error");
+      }
+    })
+    .catch(function() {
+      showToast("Submission failed", "error");
+    });
   }
 
   function openMenu() { document.getElementById("menu").classList.add("open"); }
@@ -396,7 +554,9 @@
     showScreen("setup");
   }
   function showBatches() { renderBatchList(); showScreen("batches"); }
+  function showBatchOptions() { showScreen("batch-options"); }
   function showStudents() { renderStudents(); showScreen("students"); }
+  function showBulkAdd() { document.getElementById("bulk-student-forms").innerHTML = ""; document.getElementById("student-count").value = ""; showScreen("bulk-add"); }
 
   function fillSetupFromCurrent() {
     document.getElementById("batch-count").value = state.batches.length || "";
@@ -404,7 +564,7 @@
     forms.innerHTML = "";
     if (!state.batches.length) return;
     state.batches.forEach(function(batch, i) {
-      forms.appendChild(buildBatchCard(i + 1, batch.name, batch.day, batch.time));
+      forms.appendChild(buildBatchCard(i + 1, batch.name, batch.day, batch.time, batch.fees));
     });
     var saveBtn = document.createElement("button");
     saveBtn.className = "btn btn-primary";
@@ -423,7 +583,7 @@
     var forms = document.getElementById("batch-forms");
     forms.innerHTML = "";
     for (var i = 1; i <= count; i++) {
-      forms.appendChild(buildBatchCard(i, "", "", ""));
+      forms.appendChild(buildBatchCard(i, "", "", "", ""));
     }
     var saveBtn = document.createElement("button");
     saveBtn.className = "btn btn-primary";
@@ -433,14 +593,15 @@
     forms.appendChild(saveBtn);
   }
 
-  function buildBatchCard(index, name, day, time) {
+  function buildBatchCard(index, name, day, time, fees) {
     var wrap = document.createElement("div");
     wrap.className = "card";
     wrap.innerHTML =
       "<div class='section-title'>Batch " + index + "</div>" +
       "<div class='form-row'><label>Batch Name</label><input class='input batch-name' value='" + escapeHtml(name) + "' placeholder='e.g. Grade 8 Red'></div>" +
       "<div class='form-row'><label>Day</label><input class='input batch-day' value='" + escapeHtml(day) + "' placeholder='e.g. Monday'></div>" +
-      "<div class='form-row'><label>Time</label><input class='input batch-time' value='" + escapeHtml(time) + "' placeholder='e.g. 16:00 - 17:30'></div>";
+      "<div class='form-row'><label>Time</label><input class='input batch-time' value='" + escapeHtml(time) + "' placeholder='e.g. 16:00 - 17:30'></div>" +
+      "<div class='form-row'><label>Fees (monthly)</label><input class='input batch-fees' type='number' min='0' value='" + escapeHtml(fees) + "' placeholder='e.g. 1500'></div>";
     return wrap;
   }
 
@@ -448,6 +609,7 @@
     var names = Array.from(document.querySelectorAll(".batch-name"));
     var days = Array.from(document.querySelectorAll(".batch-day"));
     var times = Array.from(document.querySelectorAll(".batch-time"));
+    var fees = Array.from(document.querySelectorAll(".batch-fees"));
     if (!names.length) { showToast("Generate batch forms first", "error"); return; }
 
     var batches = [];
@@ -455,11 +617,12 @@
       var n = names[i].value.trim();
       var d = days[i].value.trim();
       var t = times[i].value.trim();
-      if (!n || !d || !t) {
-        showToast("Batch name/day/time are required", "error");
+      var f = fees[i].value.trim();
+      if (!n || !d || !t || !f) {
+        showToast("Batch name/day/time/fees are required", "error");
         return;
       }
-      batches.push({ name: n, day: d, time: t, tabName: toTabName(n) });
+      batches.push({ name: n, day: d, time: t, fees: Number(f), tabName: toTabName(n) });
     }
 
     ensureBatchesAndTabs(batches)
@@ -480,7 +643,7 @@
       showScreen("setup");
       return;
     }
-    readRange("Batches!A2:C500")
+    readRange("Batches!A2:D500")
       .then(function(values) {
         if (!values || !values.length) {
           showScreen("setup");
@@ -489,7 +652,7 @@
         state.batches = values
           .filter(function(r) { return r[0]; })
           .map(function(r) {
-            return { name: r[0] || "", day: r[1] || "", time: r[2] || "", tabName: toTabName(r[0] || "") };
+            return { name: r[0] || "", day: r[1] || "", time: r[2] || "", fees: Number(r[3] || 0), tabName: toTabName(r[0] || "") };
           });
         renderBatchList();
         showScreen("batches");
@@ -515,7 +678,7 @@
       title.textContent = batch.name;
       var meta = document.createElement("div");
       meta.className = "batch-meta";
-      meta.textContent = batch.day + " • " + batch.time;
+      meta.textContent = batch.day + " • " + batch.time + " • Fees: " + (batch.fees || 0);
       left.appendChild(title);
       left.appendChild(meta);
       var btn = document.createElement("button");
@@ -532,15 +695,25 @@
   function openBatch(batch) {
     state.selectedBatch = batch;
     state.editingStudentRow = null;
-    document.getElementById("students-title").textContent = batch.name + " • " + batch.day + " • " + batch.time;
-    loadStudents();
+    document.getElementById("batch-options-title").textContent = batch.name + " • " + batch.day + " • " + batch.time + " • Fees: " + (batch.fees || 0);
+    showBatchOptions();
   }
 
-  function loadStudents() {
+  function openStudentManagement() {
+    if (!state.selectedBatch) { showToast("Open a batch first", "error"); return; }
+    document.getElementById("students-title").textContent = state.selectedBatch.name + " • Students";
+    loadStudents(false);
+  }
+
+  function loadStudents(skipScreenSwitch) {
     var tab = state.selectedBatch.tabName;
-    readRange(a1(tab, "A2:H1000"))
+    return readRange(a1(tab, "A2:T1000"))
       .then(function(values) {
         state.students = (values || []).map(function(r, idx) {
+          var payments = {};
+          MONTHS.forEach(function(m, mIdx) {
+            payments[m] = r[8 + mIdx] || "Not Paid";
+          });
           return {
             row: idx + 2,
             studentName: r[0] || "",
@@ -549,14 +722,18 @@
             parentWhatsapp: r[3] || "",
             day: r[4] || state.selectedBatch.day,
             time: r[5] || state.selectedBatch.time,
-            paymentStatus: r[6] || "Not Paid",
-            updatedAt: r[7] || ""
+            fees: Number(r[6] || state.selectedBatch.fees || 0),
+            updatedAt: r[7] || "",
+            payments: payments
           };
         }).filter(function(s) { return s.studentName; });
         renderStudents();
-        showScreen("students");
+        if (!skipScreenSwitch) showScreen("students");
       })
-      .catch(function() { showToast("Failed to load students", "error"); });
+      .catch(function(err) {
+        showToast("Failed to load students", "error");
+        throw err;
+      });
   }
 
   function renderStudents() {
@@ -576,20 +753,14 @@
       nameEl.className = "student-name";
       nameEl.textContent = student.studentName;
 
-      var status = document.createElement("button");
-      var paid = student.paymentStatus === "Paid";
-      status.className = "status " + (paid ? "paid" : "unpaid");
-      status.textContent = paid ? "Paid" : "Not Paid";
-      status.onclick = function() { togglePayment(student); };
-
       top.appendChild(nameEl);
-      top.appendChild(status);
 
       var meta = document.createElement("div");
       meta.className = "student-meta";
       meta.textContent = "Student WA: " + (student.studentWhatsapp || "-") +
         " | Parent: " + (student.parentName || "-") +
-        " | Parent WA: " + (student.parentWhatsapp || "-");
+        " | Parent WA: " + (student.parentWhatsapp || "-") +
+        " | Fees: " + (student.fees || 0);
 
       var actions = document.createElement("div");
       actions.className = "inline-actions";
@@ -598,12 +769,18 @@
       editBtn.textContent = "Edit";
       editBtn.onclick = function() { openStudentForm(student); };
 
+      var waBtn = document.createElement("button");
+      waBtn.className = "action-edit";
+      waBtn.textContent = "WhatsApp Parent";
+      waBtn.onclick = function() { textParent(student); };
+
       var delBtn = document.createElement("button");
       delBtn.className = "action-delete";
       delBtn.textContent = "Delete";
       delBtn.onclick = function() { deleteStudent(student); };
 
       actions.appendChild(editBtn);
+      actions.appendChild(waBtn);
       actions.appendChild(delBtn);
 
       item.appendChild(top);
@@ -621,6 +798,73 @@
     document.getElementById("parent-name").value = student ? student.parentName : "";
     document.getElementById("parent-wa").value = student ? student.parentWhatsapp : "";
     showScreen("student-form");
+  }
+
+  function generateStudentForms() {
+    if (!state.selectedBatch) { showToast("Open a batch first", "error"); return; }
+    var count = parseInt(document.getElementById("student-count").value, 10);
+    if (isNaN(count) || count < 1) {
+      showToast("Enter a valid student count", "error");
+      return;
+    }
+    var host = document.getElementById("bulk-student-forms");
+    host.innerHTML = "";
+    for (var i = 1; i <= count; i++) {
+      var card = document.createElement("div");
+      card.className = "card";
+      card.innerHTML =
+        "<div class='section-title'>Student " + i + "</div>" +
+        "<div class='form-row'><label>Student Name *</label><input class='input bulk-student-name'></div>" +
+        "<div class='form-row'><label>Student WhatsApp *</label><input class='input bulk-student-wa'></div>" +
+        "<div class='form-row'><label>Parent Name</label><input class='input bulk-parent-name'></div>" +
+        "<div class='form-row'><label>Parent WhatsApp</label><input class='input bulk-parent-wa'></div>";
+      host.appendChild(card);
+    }
+    var btn = document.createElement("button");
+    btn.className = "btn btn-primary";
+    btn.textContent = "Save All Students";
+    btn.onclick = saveBulkStudents;
+    host.appendChild(btn);
+  }
+
+  function saveBulkStudents() {
+    var names = Array.from(document.querySelectorAll(".bulk-student-name"));
+    var studentWas = Array.from(document.querySelectorAll(".bulk-student-wa"));
+    var parentNames = Array.from(document.querySelectorAll(".bulk-parent-name"));
+    var parentWas = Array.from(document.querySelectorAll(".bulk-parent-wa"));
+    if (!names.length) {
+      showToast("Generate student forms first", "error");
+      return;
+    }
+    var existingSet = {};
+    state.students.forEach(function(s) { existingSet[s.studentWhatsapp] = true; });
+    var rows = [];
+    for (var i = 0; i < names.length; i++) {
+      var n = names[i].value.trim();
+      var sw = studentWas[i].value.trim();
+      var pn = parentNames[i].value.trim();
+      var pw = parentWas[i].value.trim();
+      if (!n || !sw) {
+        showToast("Student name and WhatsApp are required for each form", "error");
+        return;
+      }
+      if (existingSet[sw]) {
+        showToast("Duplicate student WhatsApp found: " + sw, "error");
+        return;
+      }
+      existingSet[sw] = true;
+      var row = [n, sw, pn, pw, state.selectedBatch.day, state.selectedBatch.time, Number(state.selectedBatch.fees || 0), new Date().toISOString()];
+      MONTHS.forEach(function() { row.push("Not Paid"); });
+      rows.push(row);
+    }
+    writeNextStudentRows(state.selectedBatch.tabName, rows)
+      .then(function() {
+        showToast("Students saved successfully", "success");
+        openStudentManagement();
+      })
+      .catch(function(err) {
+        showToast("Failed bulk save: " + (err && err.message ? err.message : "error"), "error");
+      });
   }
 
   function saveStudent() {
@@ -646,9 +890,10 @@
       parentWa,
       state.selectedBatch.day,
       state.selectedBatch.time,
-      "Not Paid",
+      Number(state.selectedBatch.fees || 0),
       new Date().toISOString()
     ];
+    MONTHS.forEach(function() { payload.push("Not Paid"); });
 
     var tab = state.selectedBatch.tabName;
     var duplicate = state.students.some(function(s) {
@@ -662,8 +907,10 @@
     var task;
     if (state.editingStudentRow) {
       var existing = state.students.find(function(s) { return s.row === state.editingStudentRow; });
-      if (existing && existing.paymentStatus === "Paid") payload[6] = "Paid";
-      var range = a1(tab, "A" + state.editingStudentRow + ":H" + state.editingStudentRow);
+      if (existing) {
+        MONTHS.forEach(function(m, idx) { payload[8 + idx] = existing.payments[m] || "Not Paid"; });
+      }
+      var range = a1(tab, "A" + state.editingStudentRow + ":T" + state.editingStudentRow);
       task = writeRange(range, [payload]);
     } else {
       task = writeNextStudentRow(tab, payload);
@@ -678,21 +925,131 @@
     });
   }
 
-  function togglePayment(student) {
-    var next = student.paymentStatus === "Paid" ? "Not Paid" : "Paid";
-    var range = a1(state.selectedBatch.tabName, "G" + student.row + ":H" + student.row);
-    writeRange(range, [[next, new Date().toISOString()]])
+  function showPayments() {
+    if (!state.selectedBatch) { showToast("Open a batch first", "error"); return; }
+    state.selectedMonth = state.selectedMonth || "January";
+    document.getElementById("payments-title").textContent = state.selectedBatch.name + " • Fees: " + (state.selectedBatch.fees || 0);
+    renderMonthGrid();
+    loadStudents(true).then(function() {
+      renderPaymentList();
+      showScreen("payments");
+    }).catch(function() {
+      showToast("Failed to load students for payments", "error");
+    });
+  }
+
+  function renderMonthGrid() {
+    var grid = document.getElementById("month-grid");
+    grid.innerHTML = "";
+    MONTHS.forEach(function(month) {
+      var btn = document.createElement("button");
+      btn.className = "month-btn" + (month === state.selectedMonth ? " active" : "");
+      btn.textContent = month.slice(0, 3);
+      btn.onclick = function() {
+        state.selectedMonth = month;
+        renderMonthGrid();
+        renderPaymentList();
+      };
+      grid.appendChild(btn);
+    });
+  }
+
+  function renderPaymentList() {
+    var list = document.getElementById("payment-list");
+    var title = document.getElementById("payment-list-title");
+    title.textContent = "Student Payments • " + state.selectedMonth;
+    list.innerHTML = "";
+    if (!state.students.length) {
+      list.textContent = "No students in this batch yet.";
+      return;
+    }
+    state.students.forEach(function(student) {
+      var item = document.createElement("div");
+      item.className = "student-item";
+      var top = document.createElement("div");
+      top.className = "student-row-top";
+
+      var nameEl = document.createElement("div");
+      nameEl.className = "student-name";
+      nameEl.textContent = student.studentName;
+
+      var paid = (student.payments[state.selectedMonth] || "Not Paid") === "Paid";
+      var toggle = document.createElement("button");
+      toggle.className = "big-toggle " + (paid ? "paid" : "unpaid");
+      toggle.textContent = paid ? "Paid" : "Not Paid";
+      toggle.onclick = function() {
+        updatePaymentForMonth(student, state.selectedMonth, paid ? "Not Paid" : "Paid");
+      };
+
+      top.appendChild(nameEl);
+      top.appendChild(toggle);
+      item.appendChild(top);
+      list.appendChild(item);
+    });
+  }
+
+  function updatePaymentForMonth(student, month, value) {
+    var monthIdx = MONTHS.indexOf(month);
+    if (monthIdx < 0) return;
+    var col = colLetter(9 + monthIdx);
+    var row = student.row;
+    var range = a1(state.selectedBatch.tabName, col + row + ":" + col + row);
+    writeRange(range, [[value]])
       .then(function() {
-        student.paymentStatus = next;
-        renderStudents();
-        showToast("Payment updated", "success");
+        student.payments[month] = value;
+        renderPaymentList();
+        showToast("Payment updated for " + month, "success");
       })
-      .catch(function() { showToast("Failed to update payment", "error"); });
+      .catch(function(err) {
+        showToast("Failed to update payment: " + (err && err.message ? err.message : "error"), "error");
+      });
+  }
+
+  function textParent(student) {
+    if (!student.parentWhatsapp) {
+      showToast("No parent WhatsApp for this student", "error");
+      return;
+    }
+    var digits = String(student.parentWhatsapp).replace(/[^\d]/g, "");
+    if (!digits) {
+      showToast("Parent WhatsApp number invalid", "error");
+      return;
+    }
+    window.open("https://wa.me/" + digits, "_blank");
+  }
+
+  function textParentBroadcast() {
+    if (!state.selectedBatch) { showToast("Open a batch first", "error"); return; }
+    loadStudents(true).then(function() {
+      var withParents = state.students.filter(function(s) { return s.parentWhatsapp; });
+      if (!withParents.length) {
+        showToast("No parent WhatsApp numbers found", "error");
+        return;
+      }
+      textParent(withParents[0]);
+      showToast("Opened first parent WhatsApp. Use student list for others.", "success");
+    });
+  }
+
+  function copyStudentIntakeLink() {
+    if (!state.selectedBatch) { showToast("Open a batch first", "error"); return; }
+    var url = window.location.origin + window.location.pathname +
+      "?mode=student&teacher=" + encodeURIComponent(state.user.email || "") +
+      "&batch=" + encodeURIComponent(state.selectedBatch.tabName);
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(function() {
+        showToast("Student intake link copied", "success");
+      }).catch(function() {
+        window.prompt("Copy this student intake link", url);
+      });
+    } else {
+      window.prompt("Copy this student intake link", url);
+    }
   }
 
   function deleteStudent(student) {
-    var range = a1(state.selectedBatch.tabName, "A" + student.row + ":H" + student.row);
-    writeRange(range, [["", "", "", "", "", "", "", ""]])
+    var range = a1(state.selectedBatch.tabName, "A" + student.row + ":T" + student.row);
+    writeRange(range, [["", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""]])
       .then(function() {
         showToast("Student deleted", "success");
         loadStudents();
@@ -720,20 +1077,20 @@
       })
       .then(function() {
         return Promise.all([
-          writeRange("Batches!A1:C1", [BATCH_HEADERS]),
-          writeRange("Batches!A2:C1000", [])
+          writeRange("Batches!A1:D1", [BATCH_HEADERS]),
+          writeRange("Batches!A2:D1000", [])
         ]).catch(function() { return Promise.resolve(); });
       })
       .then(function() {
-        return clearRange("Batches!A2:C1000");
+        return clearRange("Batches!A2:D1000");
       })
       .then(function() {
-        var rows = batches.map(function(b) { return [b.name, b.day, b.time]; });
-        return writeRange("Batches!A2:C" + (rows.length + 1), rows);
+        var rows = batches.map(function(b) { return [b.name, b.day, b.time, Number(b.fees || 0)]; });
+        return writeRange("Batches!A2:D" + (rows.length + 1), rows);
       })
       .then(function() {
         return Promise.all(batches.map(function(b) {
-          return writeRange(a1(b.tabName, "A1:H1"), [STUDENT_HEADERS]);
+          return writeRange(a1(b.tabName, "A1:T1"), [STUDENT_HEADERS]);
         }));
       });
   }
@@ -795,8 +1152,34 @@
         }
         var nextRow = lastUsed + 1;
         if (nextRow < 2) nextRow = 2;
-        return writeRange(a1(tab, "A" + nextRow + ":H" + nextRow), [rowData]);
+        return writeRange(a1(tab, "A" + nextRow + ":T" + nextRow), [rowData]);
       });
+  }
+
+  function writeNextStudentRows(tab, rowsData) {
+    return readRange(a1(tab, "A1:A5000"))
+      .then(function(col) {
+        col = col || [];
+        var lastUsed = 1;
+        for (var i = 0; i < col.length; i++) {
+          var v = col[i] && col[i][0];
+          if (v != null && String(v).trim() !== "") lastUsed = i + 1;
+        }
+        var startRow = Math.max(2, lastUsed + 1);
+        var endRow = startRow + rowsData.length - 1;
+        return writeRange(a1(tab, "A" + startRow + ":T" + endRow), rowsData);
+      });
+  }
+
+  function colLetter(colNum) {
+    var n = colNum;
+    var s = "";
+    while (n > 0) {
+      var mod = (n - 1) % 26;
+      s = String.fromCharCode(65 + mod) + s;
+      n = Math.floor((n - mod) / 26);
+    }
+    return s;
   }
 
   function getActiveSheetId() {
