@@ -28,16 +28,21 @@ In `index.html`, set:
 
 ```js
 var CLIENT_ID = "YOUR_WEB_CLIENT_ID.apps.googleusercontent.com";
-var SHEET_ID = "YOUR_GOOGLE_SHEET_ID";
 ```
 
-Current values are already configured for your project.
+`SHEET_ID` is no longer required.
+
+The app now creates/uses one personal sheet per user:
+
+- `MasterTuitionSheet - teacher1@gmail.com`
+- `MasterTuitionSheet - teacher2@gmail.com`
 
 ## Google Cloud Setup
 
 1. Open Google Cloud Console.
 2. Select/create a project.
 3. Enable **Google Sheets API**.
+4. Enable **Google Drive API** (used to find each user's existing sheet).
 4. Configure **OAuth consent screen**.
 5. Create **OAuth Client ID** (type: Web application).
 6. Add Authorized JavaScript origin:
@@ -46,11 +51,9 @@ Current values are already configured for your project.
 
 ## Google Sheet Setup
 
-1. Create a blank Google Sheet named `MasterTuitionSheet`.
-2. Copy the sheet ID from URL and set it as `SHEET_ID`.
-3. Ensure the signing-in Google account has edit access.
+No manual sheet creation needed.
 
-The app will create and manage these tabs automatically:
+On first login for each teacher, the app creates a personal sheet automatically and manages these tabs:
 - `Batches`
 - one tab per batch name
 
