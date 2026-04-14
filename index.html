@@ -284,6 +284,7 @@
   <div class="menu-card" onclick="event.stopPropagation()">
     <div id="menu-name" style="font-weight:700;"></div>
     <div id="menu-email" style="font-size:13px;color:#7a7a9a;margin-bottom:12px;"></div>
+    <button class="btn btn-secondary" onclick="openMySheet()">Open My Sheet</button>
     <button class="btn btn-danger" onclick="signOut()">Sign out</button>
   </div>
 </div>
@@ -293,13 +294,13 @@
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script>
   var CLIENT_ID = "920543301524-69idp58am0pr3fnqf4etlghehirakp17.apps.googleusercontent.com";
-  var SHEET_ID = "1Zi6bYQNKUbv3-96saxkc5Qtx6ZFMPHB2yekTSWd3nBs";
-  var SCOPES = "https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email";
+  var SCOPES = "https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email";
 
   var accessToken = null;
   var tokenClient = null;
   var state = {
     user: null,
+    sheetId: null,
     batches: [],
     selectedBatch: null,
     students: [],
@@ -352,17 +353,33 @@
     document.getElementById("user-avatar").textContent = (state.user.name || state.user.email || "?")[0].toUpperCase();
     document.getElementById("menu-name").textContent = state.user.name || "";
     document.getElementById("menu-email").textContent = state.user.email || "";
-    loadBatches();
+    ensureUserSpreadsheet()
+      .then(function() {
+        loadBatches();
+      })
+      .catch(function(err) {
+        showToast("Cannot prepare your sheet: " + (err && err.message ? err.message : "unknown error"), "error");
+        showScreen("setup");
+      });
   }
 
   function signOut() {
     sessionStorage.clear();
     accessToken = null;
-    state = { user: null, batches: [], selectedBatch: null, students: [], editingStudentRow: null };
+    state = { user: null, sheetId: null, batches: [], selectedBatch: null, students: [], editingStudentRow: null };
     closeMenu();
     document.getElementById("main-app").classList.add("hidden");
     document.getElementById("login-screen").classList.remove("hidden");
     showToast("Signed out", "success");
+  }
+
+  function openMySheet() {
+    if (!state.sheetId) {
+      showToast("Your sheet is not ready yet.", "error");
+      return;
+    }
+    var url = "https://docs.google.com/spreadsheets/d/" + encodeURIComponent(state.sheetId) + "/edit";
+    window.open(url, "_blank");
   }
 
   function openMenu() { document.getElementById("menu").classList.add("open"); }
@@ -458,8 +475,8 @@
   }
 
   function loadBatches() {
-    if (!SHEET_ID || SHEET_ID.indexOf("PUT_YOUR") === 0) {
-      showToast("Set SHEET_ID in code first.", "error");
+    if (!state.sheetId) {
+      showToast("Your personal sheet is not ready yet.", "error");
       showScreen("setup");
       return;
     }
@@ -732,7 +749,7 @@
   }
 
   function getSheetTitles() {
-    return apiRequest("https://sheets.googleapis.com/v4/spreadsheets/" + SHEET_ID + "?fields=sheets.properties.title")
+    return apiRequest("https://sheets.googleapis.com/v4/spreadsheets/" + getActiveSheetId() + "?fields=sheets.properties.title")
       .then(function(data) {
         var list = (((data || {}).sheets) || []).map(function(s) { return s.properties.title; });
         return list;
@@ -740,19 +757,19 @@
   }
 
   function batchUpdate(requests) {
-    return apiRequest("https://sheets.googleapis.com/v4/spreadsheets/" + SHEET_ID + ":batchUpdate", {
+    return apiRequest("https://sheets.googleapis.com/v4/spreadsheets/" + getActiveSheetId() + ":batchUpdate", {
       method: "POST",
       body: JSON.stringify({ requests: requests })
     });
   }
 
   function readRange(range) {
-    var url = "https://sheets.googleapis.com/v4/spreadsheets/" + SHEET_ID + "/values/" + encodeURIComponent(range);
+    var url = "https://sheets.googleapis.com/v4/spreadsheets/" + getActiveSheetId() + "/values/" + encodeURIComponent(range);
     return apiRequest(url).then(function(data) { return data.values || []; });
   }
 
   function writeRange(range, values) {
-    var url = "https://sheets.googleapis.com/v4/spreadsheets/" + SHEET_ID + "/values/" + encodeURIComponent(range) + "?valueInputOption=RAW";
+    var url = "https://sheets.googleapis.com/v4/spreadsheets/" + getActiveSheetId() + "/values/" + encodeURIComponent(range) + "?valueInputOption=RAW";
     return apiRequest(url, {
       method: "PUT",
       body: JSON.stringify({ values: values })
@@ -760,7 +777,7 @@
   }
 
   function clearRange(range) {
-    var url = "https://sheets.googleapis.com/v4/spreadsheets/" + SHEET_ID + "/values/" + encodeURIComponent(range) + ":clear";
+    var url = "https://sheets.googleapis.com/v4/spreadsheets/" + getActiveSheetId() + "/values/" + encodeURIComponent(range) + ":clear";
     return apiRequest(url, {
       method: "POST",
       body: JSON.stringify({})
@@ -780,6 +797,77 @@
         if (nextRow < 2) nextRow = 2;
         return writeRange(a1(tab, "A" + nextRow + ":H" + nextRow), [rowData]);
       });
+  }
+
+  function getActiveSheetId() {
+    if (!state.sheetId) throw new Error("No active sheet for this user");
+    return state.sheetId;
+  }
+
+  function getUserSheetName() {
+    var email = (state.user && state.user.email) ? state.user.email.toLowerCase() : "teacher";
+    return "MasterTuitionSheet - " + email;
+  }
+
+  function getUserSheetCacheKey() {
+    var email = (state.user && state.user.email) ? state.user.email.toLowerCase() : "unknown";
+    return "tuitionSheetId:" + email;
+  }
+
+  function ensureUserSpreadsheet() {
+    var cached = localStorage.getItem(getUserSheetCacheKey());
+    if (cached) {
+      state.sheetId = cached;
+      return getSheetTitles()
+        .then(function() { return cached; })
+        .catch(function() {
+          state.sheetId = null;
+          localStorage.removeItem(getUserSheetCacheKey());
+          return findOrCreateUserSpreadsheet();
+        });
+    }
+    return findOrCreateUserSpreadsheet();
+  }
+
+  function findOrCreateUserSpreadsheet() {
+    return findUserSpreadsheetByDrive()
+      .then(function(foundId) {
+        if (foundId) {
+          state.sheetId = foundId;
+          localStorage.setItem(getUserSheetCacheKey(), foundId);
+          return foundId;
+        }
+        return createUserSpreadsheet().then(function(newId) {
+          state.sheetId = newId;
+          localStorage.setItem(getUserSheetCacheKey(), newId);
+          return newId;
+        });
+      });
+  }
+
+  function findUserSpreadsheetByDrive() {
+    var name = getUserSheetName().replace(/'/g, "\\'");
+    var query = "name='" + name + "' and mimeType='application/vnd.google-apps.spreadsheet' and trashed=false";
+    var url = "https://www.googleapis.com/drive/v3/files?q=" + encodeURIComponent(query) +
+      "&pageSize=5&fields=files(id,name)&spaces=drive";
+    return apiRequest(url).then(function(data) {
+      var files = (data && data.files) || [];
+      return files.length ? files[0].id : null;
+    });
+  }
+
+  function createUserSpreadsheet() {
+    var body = {
+      properties: { title: getUserSheetName() },
+      sheets: [{ properties: { title: "Batches" } }]
+    };
+    return apiRequest("https://sheets.googleapis.com/v4/spreadsheets", {
+      method: "POST",
+      body: JSON.stringify(body)
+    }).then(function(data) {
+      if (!data || !data.spreadsheetId) throw new Error("Failed to create user spreadsheet");
+      return data.spreadsheetId;
+    });
   }
 
   function apiRequest(url, options) {
