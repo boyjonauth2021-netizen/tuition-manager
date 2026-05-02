@@ -456,7 +456,7 @@
         .catch(function() { showToast("Cannot fetch user profile", "error"); });
       }
     });
-    tokenClient.requestAccessToken({ prompt: "consent" });
+    tokenClient.requestAccessToken();
   }
 
   function bootApp() {
