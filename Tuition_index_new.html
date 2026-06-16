@@ -1,0 +1,1307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Tuition Manager</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --primary: #1a1a2e;
+    --accent: #4f8ef7;
+    --bg: #f5f7fb;
+    --card: #ffffff;
+    --muted: #7a7a9a;
+    --text: #1d2238;
+    --border: #e2e8f2;
+    --danger: #e74c3c;
+    --success: #27ae60;
+  }
+  html, body {
+    width: 100%;
+    min-height: 100%;
+    background: var(--bg);
+    font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    color: var(--text);
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+  .hidden { display: none !important; }
+  #login-screen {
+    min-height: 100vh;
+    background: var(--primary);
+    color: #fff;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: 24px;
+  }
+  .login-title { font-size: 28px; font-weight: 700; margin-bottom: 10px; }
+  .login-sub { font-size: 15px; color: rgba(255,255,255,0.7); margin-bottom: 30px; line-height: 1.5; }
+  .btn-google {
+    border: none;
+    border-radius: 14px;
+    background: #fff;
+    color: var(--text);
+    font-weight: 700;
+    font-size: 17px;
+    padding: 16px 24px;
+    cursor: pointer;
+    width: 100%;
+    max-width: 320px;
+  }
+  #main-app { min-height: 100vh; display: flex; flex-direction: column; }
+  .topbar {
+    background: var(--primary);
+    color: #fff;
+    padding: 18px 16px 14px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.12);
+  }
+  .topbar-row { display: flex; justify-content: space-between; align-items: center; }
+  .topbar-title { font-size: 22px; font-weight: 700; }
+  .topbar-sub { margin-top: 3px; color: rgba(255,255,255,0.65); font-size: 13px; }
+  .avatar {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .content { padding: 18px 14px 26px; }
+  .screen { display: none; }
+  .screen.active { display: block; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 16px;
+    box-shadow: 0 2px 8px rgba(20, 20, 40, 0.06);
+    margin-bottom: 12px;
+  }
+  .section-title { font-size: 12px; letter-spacing: 1.2px; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; font-weight: 700; }
+  .input, .select {
+    width: 100%;
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    height: 48px;
+    padding: 0 12px;
+    font-size: 15px;
+    color: var(--text);
+    margin-top: 8px;
+    background: #fff;
+  }
+  .input:focus, .select:focus { outline: none; border-color: var(--accent); }
+  .form-row { margin-bottom: 12px; }
+  .btn {
+    border: none;
+    border-radius: 12px;
+    height: 48px;
+    padding: 0 14px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .btn-primary { background: var(--primary); color: #fff; width: 100%; }
+  .btn-secondary { background: #eef2ff; color: #22326e; width: 100%; margin-top: 8px; }
+  .btn-danger { background: #fff1f1; color: var(--danger); width: 100%; margin-top: 8px; }
+  .batch-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px;
+    margin-bottom: 8px;
+    background: #fff;
+  }
+  .batch-meta { color: var(--muted); font-size: 13px; margin-top: 3px; }
+  .student-item {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px;
+    margin-bottom: 10px;
+    background: #fff;
+  }
+  .student-row-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+  .student-name { font-weight: 700; }
+  .student-meta { font-size: 13px; color: var(--muted); line-height: 1.4; }
+  .status {
+    padding: 6px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+    border: 1px solid transparent;
+    cursor: pointer;
+  }
+  .paid { background: #eaf9f0; color: #1c7f4e; border-color: #b5e9cb; }
+  .unpaid { background: #fff1f1; color: #b13a3a; border-color: #ffcccc; }
+  .inline-actions { display: flex; gap: 8px; margin-top: 10px; }
+  .inline-actions button {
+    border: none;
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .action-edit { background: #eef2ff; color: #22326e; }
+  .action-delete { background: #fff1f1; color: var(--danger); }
+  .top-actions { display: flex; gap: 8px; margin-bottom: 10px; }
+  .top-actions .btn { width: auto; padding: 0 14px; }
+  .action-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .action-tile {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: #fff;
+    padding: 14px;
+    font-weight: 700;
+    text-align: left;
+    cursor: pointer;
+  }
+  .action-tile small { display: block; margin-top: 6px; color: var(--muted); font-weight: 500; }
+  .month-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .month-btn {
+    border: 1px solid var(--border);
+    background: #fff;
+    border-radius: 10px;
+    padding: 10px 8px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .month-btn.active { border-color: var(--accent); background: #edf3ff; color: #1b3f9b; }
+  .big-toggle {
+    height: 44px;
+    min-width: 126px;
+    border-radius: 12px;
+    border: none;
+    cursor: pointer;
+    font-size: 15px;
+    font-weight: 700;
+  }
+  .portal-wrap { max-width: 680px; margin: 24px auto; padding: 0 14px; }
+  .hint { font-size: 12px; color: var(--muted); margin-top: 8px; }
+  .toast {
+    position: fixed;
+    left: 50%;
+    bottom: 30px;
+    transform: translateX(-50%) translateY(120px);
+    background: var(--primary);
+    color: #fff;
+    padding: 12px 18px;
+    border-radius: 16px;
+    font-size: 14px;
+    transition: transform 0.2s ease;
+    z-index: 1000;
+    max-width: min(92vw, 420px);
+    white-space: normal;
+    text-align: center;
+    line-height: 1.35;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+  .menu {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    display: none;
+    align-items: flex-end;
+    z-index: 999;
+  }
+  .menu.open { display: flex; }
+  .menu-card {
+    width: 100%;
+    background: #fff;
+    border-radius: 16px 16px 0 0;
+    padding: 20px;
+  }
+</style>
+</head>
+<body>
+
+<div id="login-screen">
+  <div class="login-title">Tuition Manager</div>
+  <div class="login-sub">Manage batches, students and fee status in Google Sheets.</div>
+  <button class="btn-google" onclick="signIn()">Sign in with Google</button>
+</div>
+
+<div id="main-app" class="hidden">
+  <div class="topbar">
+    <div class="topbar-row">
+      <div>
+        <div class="topbar-title">Tuition Manager</div>
+        <div class="topbar-sub">MasterTuitionSheet</div>
+      </div>
+      <div class="avatar" id="user-avatar" onclick="openMenu()">?</div>
+    </div>
+  </div>
+
+  <div class="content">
+    <div id="screen-setup" class="screen active">
+      <div class="card">
+        <div class="section-title">Initial Setup</div>
+        <div class="form-row">
+          <label for="batch-count">How many tuition batches?</label>
+          <input class="input" id="batch-count" type="number" min="1" placeholder="e.g. 3">
+        </div>
+        <button class="btn btn-primary" onclick="generateBatchForms()">Continue</button>
+      </div>
+      <div id="batch-forms"></div>
+    </div>
+
+    <div id="screen-batches" class="screen">
+      <div class="top-actions">
+        <button class="btn btn-secondary" onclick="showSetup()">Edit Batches</button>
+      </div>
+      <div class="card">
+        <div class="section-title">Select Batch</div>
+        <div id="batch-list"></div>
+      </div>
+    </div>
+
+    <div id="screen-batch-options" class="screen">
+      <div class="top-actions">
+        <button class="btn btn-secondary" onclick="showBatches()">Back</button>
+      </div>
+      <div class="card">
+        <div class="section-title" id="batch-options-title">Batch Options</div>
+        <div class="action-grid">
+          <button class="action-tile" onclick="openStudentManagement()">
+            Modify Student Details
+            <small>Add / edit / delete students</small>
+          </button>
+          <button class="action-tile" onclick="showPayments()">
+            Payments
+            <small>Pick month and mark paid/not paid</small>
+          </button>
+          <button class="action-tile" onclick="textParentBroadcast()">
+            Text Parent on WhatsApp
+            <small>Opens WhatsApp chat for each parent</small>
+          </button>
+          <button class="action-tile" onclick="copyStudentIntakeLink()">
+            Share Student Intake Link
+            <small>Students submit own details</small>
+          </button>
+        </div>
+        <button class="btn btn-secondary" style="margin-top:10px;" onclick="openMySheet()">Open My Sheet</button>
+      </div>
+    </div>
+
+    <div id="screen-students" class="screen">
+      <div class="top-actions">
+        <button class="btn btn-secondary" onclick="showBatchOptions()">Back</button>
+        <button class="btn btn-primary" onclick="showBulkAdd()">Add Students</button>
+      </div>
+      <div class="card">
+        <div class="section-title" id="students-title">Students</div>
+        <div id="student-list"></div>
+      </div>
+    </div>
+
+    <div id="screen-bulk-add" class="screen">
+      <div class="top-actions">
+        <button class="btn btn-secondary" onclick="showStudents()">Back</button>
+      </div>
+      <div class="card">
+        <div class="section-title">Bulk Add Students</div>
+        <div class="form-row">
+          <label>How many students to add?</label>
+          <input id="student-count" class="input" type="number" min="1" placeholder="e.g. 5">
+        </div>
+        <button class="btn btn-primary" onclick="generateStudentForms()">Generate Forms</button>
+      </div>
+      <div id="bulk-student-forms"></div>
+    </div>
+
+    <div id="screen-payments" class="screen">
+      <div class="top-actions">
+        <button class="btn btn-secondary" onclick="showBatchOptions()">Back</button>
+      </div>
+      <div class="card">
+        <div class="section-title">Payments by Month</div>
+        <div id="payments-title" class="batch-meta" style="margin-bottom:10px;"></div>
+        <div class="month-grid" id="month-grid"></div>
+      </div>
+      <div class="card">
+        <div class="section-title" id="payment-list-title">Student Payments</div>
+        <div id="payment-list"></div>
+      </div>
+    </div>
+
+    <div id="screen-student-form" class="screen">
+      <div class="top-actions">
+        <button class="btn btn-secondary" onclick="showStudents()">Back</button>
+      </div>
+      <div class="card">
+        <div class="section-title" id="student-form-title">Add Student</div>
+        <div class="form-row">
+          <label>Student Name *</label>
+          <input id="student-name" class="input" placeholder="Student full name">
+        </div>
+        <div class="form-row">
+          <label>Student WhatsApp *</label>
+          <input id="student-wa" class="input" placeholder="e.g. 57123456">
+        </div>
+        <div class="form-row">
+          <label>Parent Name</label>
+          <input id="parent-name" class="input" placeholder="Optional">
+        </div>
+        <div class="form-row">
+          <label>Parent WhatsApp</label>
+          <input id="parent-wa" class="input" placeholder="Optional">
+        </div>
+        <button class="btn btn-primary" onclick="saveStudent()">Save Student</button>
+        <div class="hint">* Required fields</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="student-portal" class="hidden">
+  <div class="portal-wrap">
+    <div class="card">
+      <div class="section-title">Student Self Registration</div>
+      <div id="portal-batch-label" class="batch-meta" style="margin-bottom:8px;"></div>
+      <div class="form-row"><label>Student Name *</label><input id="portal-student-name" class="input"></div>
+      <div class="form-row"><label>Student WhatsApp *</label><input id="portal-student-wa" class="input"></div>
+      <div class="form-row"><label>Parent Name</label><input id="portal-parent-name" class="input"></div>
+      <div class="form-row"><label>Parent WhatsApp</label><input id="portal-parent-wa" class="input"></div>
+      <button class="btn btn-primary" onclick="submitPortalStudent()">Submit Details</button>
+      <div class="hint">This link is for students to submit their own details.</div>
+    </div>
+  </div>
+</div>
+
+<div class="menu" id="menu" onclick="closeMenu()">
+  <div class="menu-card" onclick="event.stopPropagation()">
+    <div id="menu-name" style="font-weight:700;"></div>
+    <div id="menu-email" style="font-size:13px;color:#7a7a9a;margin-bottom:12px;"></div>
+    <button class="btn btn-secondary" onclick="openMySheet()">Open My Sheet</button>
+    <button class="btn btn-danger" onclick="signOut()">Sign out</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script>
+  var CLIENT_ID = "920543301524-69idp58am0pr3fnqf4etlghehirakp17.apps.googleusercontent.com";
+  var SCOPES = "https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email";
+  var STUDENT_INTAKE_ENDPOINT = "https://script.google.com/macros/s/AKfycbz5sbEMZuXnxq5Vimmd1j-TVGL3e5eyry81KkONmox2PQ9qDji0OQ9Ow1_N6BWVKF-y/exec";
+  var AUTH_TOKEN_KEY = "tuitionAccessToken";
+  var AUTH_USER_KEY = "tuitionUserInfo";
+
+  var accessToken = null;
+  var tokenClient = null;
+  var state = {
+    user: null,
+    sheetId: null,
+    batches: [],
+    selectedBatch: null,
+    students: [],
+    editingStudentRow: null,
+    selectedMonth: "January"
+  };
+
+  var MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  var BATCH_HEADERS = ["Batch Name", "Day", "Time", "Fees"];
+  var STUDENT_HEADERS = ["Student Name", "Student WhatsApp", "Parent Name", "Parent WhatsApp", "Day", "Time", "Fees", "Updated At"].concat(MONTHS);
+
+  window.onload = function() {
+    var params = new URLSearchParams(window.location.search);
+    if (params.get("mode") === "student") {
+      initStudentPortal();
+      return;
+    }
+    var savedToken = localStorage.getItem(AUTH_TOKEN_KEY);
+    var savedUser = localStorage.getItem(AUTH_USER_KEY);
+    if (savedToken && savedUser) {
+      try {
+        accessToken = savedToken;
+        state.user = JSON.parse(savedUser);
+        bootApp();
+      } catch (err) {
+        // Recover gracefully if browser storage has stale/corrupt auth JSON.
+        localStorage.removeItem(AUTH_TOKEN_KEY);
+        localStorage.removeItem(AUTH_USER_KEY);
+      }
+    }
+  };
+
+  function signIn() {
+    if (!CLIENT_ID || CLIENT_ID.indexOf("PUT_YOUR") === 0) {
+      showToast("Set CLIENT_ID in code first.", "error");
+      return;
+    }
+    tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: CLIENT_ID,
+      scope: SCOPES,
+      callback: function(resp) {
+        if (resp.error) { showToast("Sign in failed", "error"); return; }
+        accessToken = resp.access_token;
+        localStorage.setItem(AUTH_TOKEN_KEY, accessToken);
+        fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+          headers: { Authorization: "Bearer " + accessToken }
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(user) {
+          state.user = user;
+          localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user));
+          bootApp();
+        })
+        .catch(function() { showToast("Cannot fetch user profile", "error"); });
+      }
+    });
+    tokenClient.requestAccessToken();
+  }
+
+  function bootApp() {
+    document.getElementById("login-screen").classList.add("hidden");
+    document.getElementById("main-app").classList.remove("hidden");
+    document.getElementById("user-avatar").textContent = (state.user.name || state.user.email || "?")[0].toUpperCase();
+    document.getElementById("menu-name").textContent = state.user.name || "";
+    document.getElementById("menu-email").textContent = state.user.email || "";
+    ensureUserSpreadsheet()
+      .then(function() {
+        loadBatches();
+      })
+      .catch(function(err) {
+        showToast("Cannot prepare your sheet: " + (err && err.message ? err.message : "unknown error"), "error");
+        showScreen("setup");
+      });
+  }
+
+  function signOut() {
+    localStorage.removeItem(AUTH_TOKEN_KEY);
+    localStorage.removeItem(AUTH_USER_KEY);
+    accessToken = null;
+    state = { user: null, sheetId: null, batches: [], selectedBatch: null, students: [], editingStudentRow: null, selectedMonth: "January" };
+    closeMenu();
+    document.getElementById("main-app").classList.add("hidden");
+    document.getElementById("login-screen").classList.remove("hidden");
+    showToast("Signed out", "success");
+  }
+
+  function openMySheet() {
+    if (!state.sheetId) {
+      showToast("Your sheet is not ready yet.", "error");
+      return;
+    }
+    var url = "https://docs.google.com/spreadsheets/d/" + encodeURIComponent(state.sheetId) + "/edit";
+    window.open(url, "_blank");
+  }
+
+  function initStudentPortal() {
+    document.getElementById("login-screen").classList.add("hidden");
+    document.getElementById("main-app").classList.add("hidden");
+    document.getElementById("student-portal").classList.remove("hidden");
+    var params = new URLSearchParams(window.location.search);
+    var batch = params.get("batch") || "";
+    var teacher = params.get("teacher") || "";
+    document.getElementById("portal-batch-label").textContent = "Batch: " + batch + (teacher ? " • Teacher: " + teacher : "");
+  }
+
+  function submitPortalStudent() {
+    var params = new URLSearchParams(window.location.search);
+    var payload = {
+      teacherEmail: params.get("teacher") || "",
+      batch: params.get("batch") || "",
+      studentName: document.getElementById("portal-student-name").value.trim(),
+      studentWhatsapp: document.getElementById("portal-student-wa").value.trim(),
+      parentName: document.getElementById("portal-parent-name").value.trim(),
+      parentWhatsapp: document.getElementById("portal-parent-wa").value.trim()
+    };
+    if (!payload.studentName || !payload.studentWhatsapp || !payload.batch) {
+      showToast("Fill required fields first", "error");
+      return;
+    }
+    if (!STUDENT_INTAKE_ENDPOINT) {
+      showToast("Student link endpoint not configured yet.", "error");
+      return;
+    }
+    fetch(STUDENT_INTAKE_ENDPOINT, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(resp) {
+      if (resp && resp.ok) {
+        showToast("Details submitted successfully", "success");
+      } else {
+        showToast((resp && resp.message) || "Submission failed", "error");
+      }
+    })
+    .catch(function() {
+      showToast("Submission failed", "error");
+    });
+  }
+
+  function openMenu() { document.getElementById("menu").classList.add("open"); }
+  function closeMenu() { document.getElementById("menu").classList.remove("open"); }
+
+  function showScreen(id) {
+    document.querySelectorAll(".screen").forEach(function(el) { el.classList.remove("active"); });
+    document.getElementById("screen-" + id).classList.add("active");
+    window.scrollTo(0, 0);
+  }
+
+  function showSetup() {
+    fillSetupFromCurrent();
+    showScreen("setup");
+  }
+  function showBatches() { renderBatchList(); showScreen("batches"); }
+  function showBatchOptions() { showScreen("batch-options"); }
+  function showStudents() { renderStudents(); showScreen("students"); }
+  function showBulkAdd() { document.getElementById("bulk-student-forms").innerHTML = ""; document.getElementById("student-count").value = ""; showScreen("bulk-add"); }
+
+  function fillSetupFromCurrent() {
+    document.getElementById("batch-count").value = state.batches.length || "";
+    var forms = document.getElementById("batch-forms");
+    forms.innerHTML = "";
+    if (!state.batches.length) return;
+    state.batches.forEach(function(batch, i) {
+      forms.appendChild(buildBatchCard(i + 1, batch.name, batch.day, batch.time, batch.fees));
+    });
+    var saveBtn = document.createElement("button");
+    saveBtn.className = "btn btn-primary";
+    saveBtn.style.marginTop = "12px";
+    saveBtn.textContent = "Save Batch Setup";
+    saveBtn.onclick = saveBatchSetup;
+    forms.appendChild(saveBtn);
+  }
+
+  function generateBatchForms() {
+    var count = parseInt(document.getElementById("batch-count").value, 10);
+    if (isNaN(count) || count < 1) {
+      showToast("Enter a valid batch count", "error");
+      return;
+    }
+    var forms = document.getElementById("batch-forms");
+    forms.innerHTML = "";
+    for (var i = 1; i <= count; i++) {
+      forms.appendChild(buildBatchCard(i, "", "", "", ""));
+    }
+    var saveBtn = document.createElement("button");
+    saveBtn.className = "btn btn-primary";
+    saveBtn.style.marginTop = "12px";
+    saveBtn.textContent = "Save Batch Setup";
+    saveBtn.onclick = saveBatchSetup;
+    forms.appendChild(saveBtn);
+  }
+
+  function buildBatchCard(index, name, day, time, fees) {
+    var wrap = document.createElement("div");
+    wrap.className = "card";
+    wrap.innerHTML =
+      "<div class='section-title'>Batch " + index + "</div>" +
+      "<div class='form-row'><label>Batch Name</label><input class='input batch-name' value='" + escapeHtml(name) + "' placeholder='e.g. Grade 8 Red'></div>" +
+      "<div class='form-row'><label>Day</label><input class='input batch-day' value='" + escapeHtml(day) + "' placeholder='e.g. Monday'></div>" +
+      "<div class='form-row'><label>Time</label><input class='input batch-time' value='" + escapeHtml(time) + "' placeholder='e.g. 16:00 - 17:30'></div>" +
+      "<div class='form-row'><label>Fees (monthly)</label><input class='input batch-fees' type='number' min='0' value='" + escapeHtml(fees) + "' placeholder='e.g. 1500'></div>";
+    return wrap;
+  }
+
+  function saveBatchSetup() {
+    var names = Array.from(document.querySelectorAll(".batch-name"));
+    var days = Array.from(document.querySelectorAll(".batch-day"));
+    var times = Array.from(document.querySelectorAll(".batch-time"));
+    var fees = Array.from(document.querySelectorAll(".batch-fees"));
+    if (!names.length) { showToast("Generate batch forms first", "error"); return; }
+
+    var batches = [];
+    for (var i = 0; i < names.length; i++) {
+      var n = names[i].value.trim();
+      var d = days[i].value.trim();
+      var t = times[i].value.trim();
+      var f = fees[i].value.trim();
+      if (!n || !d || !t || !f) {
+        showToast("Batch name/day/time/fees are required", "error");
+        return;
+      }
+      batches.push({ name: n, day: d, time: t, fees: Number(f), tabName: toTabName(n) });
+    }
+
+    ensureBatchesAndTabs(batches)
+      .then(function() {
+        state.batches = batches;
+        renderBatchList();
+        showScreen("batches");
+        showToast("Batch setup saved", "success");
+      })
+      .catch(function(err) {
+        showToast(err.message || "Failed to save setup", "error");
+      });
+  }
+
+  function loadBatches() {
+    if (!state.sheetId) {
+      showToast("Your personal sheet is not ready yet.", "error");
+      showScreen("setup");
+      return;
+    }
+    readRange("Batches!A2:D500")
+      .then(function(values) {
+        if (!values || !values.length) {
+          showScreen("setup");
+          return;
+        }
+        state.batches = values
+          .filter(function(r) { return r[0]; })
+          .map(function(r) {
+            return { name: r[0] || "", day: r[1] || "", time: r[2] || "", fees: Number(r[3] || 0), tabName: toTabName(r[0] || "") };
+          });
+        renderBatchList();
+        showScreen("batches");
+      })
+      .catch(function() {
+        showScreen("setup");
+      });
+  }
+
+  function renderBatchList() {
+    var list = document.getElementById("batch-list");
+    list.innerHTML = "";
+    if (!state.batches.length) {
+      list.textContent = "No batches configured yet.";
+      return;
+    }
+    state.batches.forEach(function(batch) {
+      var item = document.createElement("div");
+      item.className = "batch-item";
+      var left = document.createElement("div");
+      var title = document.createElement("div");
+      title.style.fontWeight = "700";
+      title.textContent = batch.name;
+      var meta = document.createElement("div");
+      meta.className = "batch-meta";
+      meta.textContent = batch.day + " • " + batch.time + " • Fees: " + (batch.fees || 0);
+      left.appendChild(title);
+      left.appendChild(meta);
+      var btn = document.createElement("button");
+      btn.className = "btn btn-primary";
+      btn.style.width = "auto";
+      btn.textContent = "Open";
+      btn.onclick = function() { openBatch(batch); };
+      item.appendChild(left);
+      item.appendChild(btn);
+      list.appendChild(item);
+    });
+  }
+
+  function openBatch(batch) {
+    state.selectedBatch = batch;
+    state.editingStudentRow = null;
+    document.getElementById("batch-options-title").textContent = batch.name + " • " + batch.day + " • " + batch.time + " • Fees: " + (batch.fees || 0);
+    showBatchOptions();
+  }
+
+  function openStudentManagement() {
+    if (!state.selectedBatch) { showToast("Open a batch first", "error"); return; }
+    document.getElementById("students-title").textContent = state.selectedBatch.name + " • Students";
+    loadStudents(false);
+  }
+
+  function loadStudents(skipScreenSwitch) {
+    var tab = state.selectedBatch.tabName;
+    return readRange(a1(tab, "A2:T1000"))
+      .then(function(values) {
+        state.students = (values || []).map(function(r, idx) {
+          var payments = {};
+          MONTHS.forEach(function(m, mIdx) {
+            payments[m] = r[8 + mIdx] || "Not Paid";
+          });
+          return {
+            row: idx + 2,
+            studentName: r[0] || "",
+            studentWhatsapp: r[1] || "",
+            parentName: r[2] || "",
+            parentWhatsapp: r[3] || "",
+            day: r[4] || state.selectedBatch.day,
+            time: r[5] || state.selectedBatch.time,
+            fees: Number(r[6] || state.selectedBatch.fees || 0),
+            updatedAt: r[7] || "",
+            payments: payments
+          };
+        }).filter(function(s) { return s.studentName; });
+        renderStudents();
+        if (!skipScreenSwitch) showScreen("students");
+      })
+      .catch(function(err) {
+        showToast("Failed to load students", "error");
+        throw err;
+      });
+  }
+
+  function renderStudents() {
+    var list = document.getElementById("student-list");
+    list.innerHTML = "";
+    if (!state.students.length) {
+      list.textContent = "No students in this batch yet.";
+      return;
+    }
+    state.students.forEach(function(student) {
+      var item = document.createElement("div");
+      item.className = "student-item";
+      var top = document.createElement("div");
+      top.className = "student-row-top";
+
+      var nameEl = document.createElement("div");
+      nameEl.className = "student-name";
+      nameEl.textContent = student.studentName;
+
+      top.appendChild(nameEl);
+
+      var meta = document.createElement("div");
+      meta.className = "student-meta";
+      meta.textContent = "Student WA: " + (student.studentWhatsapp || "-") +
+        " | Parent: " + (student.parentName || "-") +
+        " | Parent WA: " + (student.parentWhatsapp || "-") +
+        " | Fees: " + (student.fees || 0);
+
+      var actions = document.createElement("div");
+      actions.className = "inline-actions";
+      var editBtn = document.createElement("button");
+      editBtn.className = "action-edit";
+      editBtn.textContent = "Edit";
+      editBtn.onclick = function() { openStudentForm(student); };
+
+      var waBtn = document.createElement("button");
+      waBtn.className = "action-edit";
+      waBtn.textContent = "WhatsApp Parent";
+      waBtn.onclick = function() { textParent(student); };
+
+      var delBtn = document.createElement("button");
+      delBtn.className = "action-delete";
+      delBtn.textContent = "Delete";
+      delBtn.onclick = function() { deleteStudent(student); };
+
+      actions.appendChild(editBtn);
+      actions.appendChild(waBtn);
+      actions.appendChild(delBtn);
+
+      item.appendChild(top);
+      item.appendChild(meta);
+      item.appendChild(actions);
+      list.appendChild(item);
+    });
+  }
+
+  function openStudentForm(student) {
+    state.editingStudentRow = student ? student.row : null;
+    document.getElementById("student-form-title").textContent = student ? "Edit Student" : "Add Student";
+    document.getElementById("student-name").value = student ? student.studentName : "";
+    document.getElementById("student-wa").value = student ? student.studentWhatsapp : "";
+    document.getElementById("parent-name").value = student ? student.parentName : "";
+    document.getElementById("parent-wa").value = student ? student.parentWhatsapp : "";
+    showScreen("student-form");
+  }
+
+  function generateStudentForms() {
+    if (!state.selectedBatch) { showToast("Open a batch first", "error"); return; }
+    var count = parseInt(document.getElementById("student-count").value, 10);
+    if (isNaN(count) || count < 1) {
+      showToast("Enter a valid student count", "error");
+      return;
+    }
+    var host = document.getElementById("bulk-student-forms");
+    host.innerHTML = "";
+    for (var i = 1; i <= count; i++) {
+      var card = document.createElement("div");
+      card.className = "card";
+      card.innerHTML =
+        "<div class='section-title'>Student " + i + "</div>" +
+        "<div class='form-row'><label>Student Name *</label><input class='input bulk-student-name'></div>" +
+        "<div class='form-row'><label>Student WhatsApp *</label><input class='input bulk-student-wa'></div>" +
+        "<div class='form-row'><label>Parent Name</label><input class='input bulk-parent-name'></div>" +
+        "<div class='form-row'><label>Parent WhatsApp</label><input class='input bulk-parent-wa'></div>";
+      host.appendChild(card);
+    }
+    var btn = document.createElement("button");
+    btn.className = "btn btn-primary";
+    btn.textContent = "Save All Students";
+    btn.onclick = saveBulkStudents;
+    host.appendChild(btn);
+  }
+
+  function saveBulkStudents() {
+    var names = Array.from(document.querySelectorAll(".bulk-student-name"));
+    var studentWas = Array.from(document.querySelectorAll(".bulk-student-wa"));
+    var parentNames = Array.from(document.querySelectorAll(".bulk-parent-name"));
+    var parentWas = Array.from(document.querySelectorAll(".bulk-parent-wa"));
+    if (!names.length) {
+      showToast("Generate student forms first", "error");
+      return;
+    }
+    var existingSet = {};
+    state.students.forEach(function(s) { existingSet[s.studentWhatsapp] = true; });
+    var rows = [];
+    for (var i = 0; i < names.length; i++) {
+      var n = names[i].value.trim();
+      var sw = studentWas[i].value.trim();
+      var pn = parentNames[i].value.trim();
+      var pw = parentWas[i].value.trim();
+      if (!n || !sw) {
+        showToast("Student name and WhatsApp are required for each form", "error");
+        return;
+      }
+      if (existingSet[sw]) {
+        showToast("Duplicate student WhatsApp found: " + sw, "error");
+        return;
+      }
+      existingSet[sw] = true;
+      var row = [n, sw, pn, pw, state.selectedBatch.day, state.selectedBatch.time, Number(state.selectedBatch.fees || 0), new Date().toISOString()];
+      MONTHS.forEach(function() { row.push("Not Paid"); });
+      rows.push(row);
+    }
+    writeNextStudentRows(state.selectedBatch.tabName, rows)
+      .then(function() {
+        showToast("Students saved successfully", "success");
+        openStudentManagement();
+      })
+      .catch(function(err) {
+        showToast("Failed bulk save: " + (err && err.message ? err.message : "error"), "error");
+      });
+  }
+
+  function saveStudent() {
+    var studentName = document.getElementById("student-name").value.trim();
+    var studentWa = document.getElementById("student-wa").value.trim();
+    var parentName = document.getElementById("parent-name").value.trim();
+    var parentWa = document.getElementById("parent-wa").value.trim();
+
+    if (!state.selectedBatch) {
+      showToast("Open a batch first, then add a student.", "error");
+      return;
+    }
+
+    if (!studentName || !studentWa) {
+      showToast("Student name and WhatsApp are required", "error");
+      return;
+    }
+
+    var payload = [
+      studentName,
+      studentWa,
+      parentName,
+      parentWa,
+      state.selectedBatch.day,
+      state.selectedBatch.time,
+      Number(state.selectedBatch.fees || 0),
+      new Date().toISOString()
+    ];
+    MONTHS.forEach(function() { payload.push("Not Paid"); });
+
+    var tab = state.selectedBatch.tabName;
+    var duplicate = state.students.some(function(s) {
+      return s.studentWhatsapp === studentWa && s.row !== state.editingStudentRow;
+    });
+    if (duplicate) {
+      showToast("Student WhatsApp already exists in this batch", "error");
+      return;
+    }
+
+    var task;
+    if (state.editingStudentRow) {
+      var existing = state.students.find(function(s) { return s.row === state.editingStudentRow; });
+      if (existing) {
+        MONTHS.forEach(function(m, idx) { payload[8 + idx] = existing.payments[m] || "Not Paid"; });
+      }
+      var range = a1(tab, "A" + state.editingStudentRow + ":T" + state.editingStudentRow);
+      task = writeRange(range, [payload]);
+    } else {
+      task = writeNextStudentRow(tab, payload);
+    }
+
+    task.then(function() {
+      state.editingStudentRow = null;
+      showToast("Student saved", "success");
+      loadStudents();
+    }).catch(function(err) {
+      showToast("Failed to save student: " + (err && err.message ? err.message : "unknown error"), "error");
+    });
+  }
+
+  function showPayments() {
+    if (!state.selectedBatch) { showToast("Open a batch first", "error"); return; }
+    state.selectedMonth = state.selectedMonth || "January";
+    document.getElementById("payments-title").textContent = state.selectedBatch.name + " • Fees: " + (state.selectedBatch.fees || 0);
+    renderMonthGrid();
+    loadStudents(true).then(function() {
+      renderPaymentList();
+      showScreen("payments");
+    }).catch(function() {
+      showToast("Failed to load students for payments", "error");
+    });
+  }
+
+  function renderMonthGrid() {
+    var grid = document.getElementById("month-grid");
+    grid.innerHTML = "";
+    MONTHS.forEach(function(month) {
+      var btn = document.createElement("button");
+      btn.className = "month-btn" + (month === state.selectedMonth ? " active" : "");
+      btn.textContent = month.slice(0, 3);
+      btn.onclick = function() {
+        state.selectedMonth = month;
+        renderMonthGrid();
+        renderPaymentList();
+      };
+      grid.appendChild(btn);
+    });
+  }
+
+  function renderPaymentList() {
+    var list = document.getElementById("payment-list");
+    var title = document.getElementById("payment-list-title");
+    title.textContent = "Student Payments • " + state.selectedMonth;
+    list.innerHTML = "";
+    if (!state.students.length) {
+      list.textContent = "No students in this batch yet.";
+      return;
+    }
+    state.students.forEach(function(student) {
+      var item = document.createElement("div");
+      item.className = "student-item";
+      var top = document.createElement("div");
+      top.className = "student-row-top";
+
+      var nameEl = document.createElement("div");
+      nameEl.className = "student-name";
+      nameEl.textContent = student.studentName;
+
+      var paid = (student.payments[state.selectedMonth] || "Not Paid") === "Paid";
+      var toggle = document.createElement("button");
+      toggle.className = "big-toggle " + (paid ? "paid" : "unpaid");
+      toggle.textContent = paid ? "Paid" : "Not Paid";
+      toggle.onclick = function() {
+        updatePaymentForMonth(student, state.selectedMonth, paid ? "Not Paid" : "Paid");
+      };
+
+      top.appendChild(nameEl);
+      top.appendChild(toggle);
+      item.appendChild(top);
+      list.appendChild(item);
+    });
+  }
+
+  function updatePaymentForMonth(student, month, value) {
+    var monthIdx = MONTHS.indexOf(month);
+    if (monthIdx < 0) return;
+    var col = colLetter(9 + monthIdx);
+    var row = student.row;
+    var range = a1(state.selectedBatch.tabName, col + row + ":" + col + row);
+    writeRange(range, [[value]])
+      .then(function() {
+        student.payments[month] = value;
+        renderPaymentList();
+        showToast("Payment updated for " + month, "success");
+      })
+      .catch(function(err) {
+        showToast("Failed to update payment: " + (err && err.message ? err.message : "error"), "error");
+      });
+  }
+
+  function textParent(student) {
+    if (!student.parentWhatsapp) {
+      showToast("No parent WhatsApp for this student", "error");
+      return;
+    }
+    var digits = String(student.parentWhatsapp).replace(/[^\d]/g, "");
+    if (!digits) {
+      showToast("Parent WhatsApp number invalid", "error");
+      return;
+    }
+    window.open("https://wa.me/" + digits, "_blank");
+  }
+
+  function textParentBroadcast() {
+    if (!state.selectedBatch) { showToast("Open a batch first", "error"); return; }
+    loadStudents(true).then(function() {
+      var withParents = state.students.filter(function(s) { return s.parentWhatsapp; });
+      if (!withParents.length) {
+        showToast("No parent WhatsApp numbers found", "error");
+        return;
+      }
+      textParent(withParents[0]);
+      showToast("Opened first parent WhatsApp. Use student list for others.", "success");
+    });
+  }
+
+  function copyStudentIntakeLink() {
+    if (!state.selectedBatch) { showToast("Open a batch first", "error"); return; }
+    var url = window.location.origin + window.location.pathname +
+      "?mode=student&teacher=" + encodeURIComponent(state.user.email || "") +
+      "&batch=" + encodeURIComponent(state.selectedBatch.tabName);
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(url).then(function() {
+        showToast("Student intake link copied", "success");
+      }).catch(function() {
+        window.prompt("Copy this student intake link", url);
+      });
+    } else {
+      window.prompt("Copy this student intake link", url);
+    }
+  }
+
+  function deleteStudent(student) {
+    var range = a1(state.selectedBatch.tabName, "A" + student.row + ":T" + student.row);
+    writeRange(range, [["", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""]])
+      .then(function() {
+        showToast("Student deleted", "success");
+        loadStudents();
+      })
+      .catch(function() { showToast("Failed to delete student", "error"); });
+  }
+
+  function ensureBatchesAndTabs(batches) {
+    return getSheetTitles()
+      .then(function(titles) {
+        var reqs = [];
+        if (titles.indexOf("Batches") === -1) {
+          reqs.push({ addSheet: { properties: { title: "Batches" } } });
+        }
+        batches.forEach(function(b) {
+          if (titles.indexOf(b.tabName) === -1) {
+            reqs.push({ addSheet: { properties: { title: b.tabName } } });
+          }
+        });
+        var chain = Promise.resolve();
+        if (reqs.length) {
+          chain = batchUpdate(reqs).then(function() { return getSheetTitles(); });
+        }
+        return chain;
+      })
+      .then(function() {
+        return Promise.all([
+          writeRange("Batches!A1:D1", [BATCH_HEADERS]),
+          writeRange("Batches!A2:D1000", [])
+        ]).catch(function() { return Promise.resolve(); });
+      })
+      .then(function() {
+        return clearRange("Batches!A2:D1000");
+      })
+      .then(function() {
+        var rows = batches.map(function(b) { return [b.name, b.day, b.time, Number(b.fees || 0)]; });
+        return writeRange("Batches!A2:D" + (rows.length + 1), rows);
+      })
+      .then(function() {
+        return Promise.all(batches.map(function(b) {
+          return writeRange(a1(b.tabName, "A1:T1"), [STUDENT_HEADERS]);
+        }));
+      });
+  }
+
+  function a1(tabName, rangePart) {
+    var safeTab = String(tabName || "").replace(/'/g, "''");
+    return "'" + safeTab + "'!" + rangePart;
+  }
+
+  function toTabName(name) {
+    var clean = (name || "Batch").replace(/[\[\]\*\/\\\?\:]/g, " ").trim();
+    return clean.slice(0, 90) || "Batch";
+  }
+
+  function getSheetTitles() {
+    return apiRequest("https://sheets.googleapis.com/v4/spreadsheets/" + getActiveSheetId() + "?fields=sheets.properties.title")
+      .then(function(data) {
+        var list = (((data || {}).sheets) || []).map(function(s) { return s.properties.title; });
+        return list;
+      });
+  }
+
+  function batchUpdate(requests) {
+    return apiRequest("https://sheets.googleapis.com/v4/spreadsheets/" + getActiveSheetId() + ":batchUpdate", {
+      method: "POST",
+      body: JSON.stringify({ requests: requests })
+    });
+  }
+
+  function readRange(range) {
+    var url = "https://sheets.googleapis.com/v4/spreadsheets/" + getActiveSheetId() + "/values/" + encodeURIComponent(range);
+    return apiRequest(url).then(function(data) { return data.values || []; });
+  }
+
+  function writeRange(range, values) {
+    var url = "https://sheets.googleapis.com/v4/spreadsheets/" + getActiveSheetId() + "/values/" + encodeURIComponent(range) + "?valueInputOption=RAW";
+    return apiRequest(url, {
+      method: "PUT",
+      body: JSON.stringify({ values: values })
+    });
+  }
+
+  function clearRange(range) {
+    var url = "https://sheets.googleapis.com/v4/spreadsheets/" + getActiveSheetId() + "/values/" + encodeURIComponent(range) + ":clear";
+    return apiRequest(url, {
+      method: "POST",
+      body: JSON.stringify({})
+    });
+  }
+
+  function writeNextStudentRow(tab, rowData) {
+    return readRange(a1(tab, "A1:A2000"))
+      .then(function(col) {
+        col = col || [];
+        var lastUsed = 1;
+        for (var i = 0; i < col.length; i++) {
+          var v = col[i] && col[i][0];
+          if (v != null && String(v).trim() !== "") lastUsed = i + 1;
+        }
+        var nextRow = lastUsed + 1;
+        if (nextRow < 2) nextRow = 2;
+        return writeRange(a1(tab, "A" + nextRow + ":T" + nextRow), [rowData]);
+      });
+  }
+
+  function writeNextStudentRows(tab, rowsData) {
+    return readRange(a1(tab, "A1:A5000"))
+      .then(function(col) {
+        col = col || [];
+        var lastUsed = 1;
+        for (var i = 0; i < col.length; i++) {
+          var v = col[i] && col[i][0];
+          if (v != null && String(v).trim() !== "") lastUsed = i + 1;
+        }
+        var startRow = Math.max(2, lastUsed + 1);
+        var endRow = startRow + rowsData.length - 1;
+        return writeRange(a1(tab, "A" + startRow + ":T" + endRow), rowsData);
+      });
+  }
+
+  function colLetter(colNum) {
+    var n = colNum;
+    var s = "";
+    while (n > 0) {
+      var mod = (n - 1) % 26;
+      s = String.fromCharCode(65 + mod) + s;
+      n = Math.floor((n - mod) / 26);
+    }
+    return s;
+  }
+
+  function getActiveSheetId() {
+    if (!state.sheetId) throw new Error("No active sheet for this user");
+    return state.sheetId;
+  }
+
+  function getUserSheetName() {
+    var email = (state.user && state.user.email) ? state.user.email.toLowerCase() : "teacher";
+    return "MasterTuitionSheet - " + email;
+  }
+
+  function getUserSheetCacheKey() {
+    var email = (state.user && state.user.email) ? state.user.email.toLowerCase() : "unknown";
+    return "tuitionSheetId:" + email;
+  }
+
+  function ensureUserSpreadsheet() {
+    var cached = localStorage.getItem(getUserSheetCacheKey());
+    if (cached) {
+      state.sheetId = cached;
+      return getSheetTitles()
+        .then(function() { return cached; })
+        .catch(function() {
+          state.sheetId = null;
+          localStorage.removeItem(getUserSheetCacheKey());
+          return findOrCreateUserSpreadsheet();
+        });
+    }
+    return findOrCreateUserSpreadsheet();
+  }
+
+  function findOrCreateUserSpreadsheet() {
+    return findUserSpreadsheetByDrive()
+      .then(function(foundId) {
+        if (foundId) {
+          state.sheetId = foundId;
+          localStorage.setItem(getUserSheetCacheKey(), foundId);
+          return foundId;
+        }
+        return createUserSpreadsheet().then(function(newId) {
+          state.sheetId = newId;
+          localStorage.setItem(getUserSheetCacheKey(), newId);
+          return newId;
+        });
+      });
+  }
+
+  function findUserSpreadsheetByDrive() {
+    var name = getUserSheetName().replace(/'/g, "\\'");
+    var query = "name='" + name + "' and mimeType='application/vnd.google-apps.spreadsheet' and trashed=false";
+    var url = "https://www.googleapis.com/drive/v3/files?q=" + encodeURIComponent(query) +
+      "&pageSize=5&fields=files(id,name)&spaces=drive";
+    return apiRequest(url).then(function(data) {
+      var files = (data && data.files) || [];
+      return files.length ? files[0].id : null;
+    });
+  }
+
+  function createUserSpreadsheet() {
+    var body = {
+      properties: { title: getUserSheetName() },
+      sheets: [{ properties: { title: "Batches" } }]
+    };
+    return apiRequest("https://sheets.googleapis.com/v4/spreadsheets", {
+      method: "POST",
+      body: JSON.stringify(body)
+    }).then(function(data) {
+      if (!data || !data.spreadsheetId) throw new Error("Failed to create user spreadsheet");
+      return data.spreadsheetId;
+    });
+  }
+
+  function apiRequest(url, options) {
+    options = options || {};
+    if (!accessToken) return Promise.reject(new Error("Not signed in"));
+    options.headers = Object.assign({
+      Authorization: "Bearer " + accessToken,
+      "Content-Type": "application/json"
+    }, options.headers || {});
+    return fetch(url, options)
+      .then(function(r) {
+        return r.text().then(function(text) {
+          var data = {};
+          if (text) {
+            try { data = JSON.parse(text); } catch (e) {
+              throw new Error("Sheets API returned non-JSON (HTTP " + r.status + "). Sign out and sign in again.");
+            }
+          }
+          if (data.error) throw new Error(data.error.message || "API error");
+          if (!r.ok) throw new Error("HTTP " + r.status + (data && data.error && data.error.message ? ": " + data.error.message : ""));
+          return data;
+        });
+      });
+  }
+
+  function escapeHtml(str) {
+    return String(str || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
+  function showToast(msg, type) {
+    var toast = document.getElementById("toast");
+    toast.textContent = msg;
+    toast.style.background = type === "error" ? "#c0392b" : (type === "success" ? "#1f7a4a" : "#1a1a2e");
+    toast.className = "toast show";
+    var ms = type === "error" && msg.length > 60 ? 5000 : 2200;
+    setTimeout(function() { toast.className = "toast"; }, ms);
+  }
+</script>
+</body>
+</html>
