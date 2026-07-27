@@ -1221,7 +1221,19 @@
       showToast("WhatsApp number invalid or missing", "error");
       return;
     }
-    var url = "https://wa.me/" + digits + "?text=" + encodeURIComponent(message);
+    var text = message || "";
+    var ua = navigator.userAgent || "";
+    // Prefer personal WhatsApp (com.whatsapp) over Business (com.whatsapp.w4b) on Android
+    if (/Android/i.test(ua)) {
+      var intentUrl =
+        "intent://send?phone=" + digits +
+        "&text=" + encodeURIComponent(text) +
+        "#Intent;scheme=whatsapp;package=com.whatsapp;end";
+      window.location.href = intentUrl;
+      return;
+    }
+    var url = "https://wa.me/" + digits;
+    if (text) url += "?text=" + encodeURIComponent(text);
     window.open(url, "_blank");
   }
 
@@ -1353,12 +1365,7 @@
       showToast("No parent WhatsApp for this student", "error");
       return;
     }
-    var digits = String(student.parentWhatsapp).replace(/[^\d]/g, "");
-    if (!digits) {
-      showToast("Parent WhatsApp number invalid", "error");
-      return;
-    }
-    window.open("https://wa.me/" + digits, "_blank");
+    openWhatsAppWithMessage(student.parentWhatsapp, "");
   }
 
   function textParentBroadcast() {
