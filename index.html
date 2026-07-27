@@ -300,6 +300,10 @@
             Share Student Intake Link
             <small>Students submit own details</small>
           </button>
+          <button class="action-tile" onclick="showNonPayment()">
+            Non-Payment
+            <small>See unpaid months per student</small>
+          </button>
         </div>
         <button class="btn btn-secondary" style="margin-top:10px;" onclick="openMySheet()">Open My Sheet</button>
       </div>
@@ -343,6 +347,25 @@
       <div class="card">
         <div class="section-title" id="payment-list-title">Student Payments</div>
         <div id="payment-list"></div>
+      </div>
+    </div>
+
+    <div id="screen-non-payment" class="screen">
+      <div class="top-actions">
+        <button class="btn btn-secondary" onclick="showBatchOptions()">Back</button>
+      </div>
+      <div class="card">
+        <div class="section-title" id="nonpay-title">Non-Payment Report</div>
+        <div id="nonpay-batch-meta" class="batch-meta" style="margin-bottom:10px;"></div>
+        <div class="form-row">
+          <label for="nonpay-student">Select student</label>
+          <select id="nonpay-student" class="select" onchange="onNonPaymentStudentChange()">
+            <option value="">— Choose a student —</option>
+          </select>
+        </div>
+        <div class="section-title" style="margin-top:16px;">Unpaid months</div>
+        <div id="nonpay-months" class="batch-meta"></div>
+        <div id="nonpay-whatsapp-actions" class="inline-actions" style="display:none;margin-top:14px;"></div>
       </div>
     </div>
 
@@ -421,7 +444,8 @@
     selectedBatch: null,
     students: [],
     editingStudentRow: null,
-    selectedMonth: "January"
+    selectedMonth: "January",
+    nonPaymentStudent: null
   };
 
   var MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -1101,6 +1125,154 @@
     }).catch(function() {
       showToast("Failed to load students for payments", "error");
     });
+  }
+
+  function getUnpaidMonthsForStudent(student) {
+    return MONTHS.filter(function(month) {
+      return (student.payments[month] || "Not Paid") !== "Paid";
+    });
+  }
+
+  function populateNonPaymentStudentSelect() {
+    var select = document.getElementById("nonpay-student");
+    select.innerHTML = '<option value="">— Choose a student —</option>';
+    state.students.forEach(function(student, idx) {
+      var opt = document.createElement("option");
+      opt.value = String(idx);
+      opt.textContent = student.studentName;
+      select.appendChild(opt);
+    });
+    select.value = "";
+  }
+
+  function renderNonPaymentMonths(student) {
+    var container = document.getElementById("nonpay-months");
+    var actions = document.getElementById("nonpay-whatsapp-actions");
+    container.innerHTML = "";
+    actions.innerHTML = "";
+    actions.style.display = "none";
+    state.nonPaymentStudent = student || null;
+
+    if (!student) {
+      container.textContent = "Select a student to see unpaid months.";
+      return;
+    }
+    var unpaid = getUnpaidMonthsForStudent(student);
+    if (!unpaid.length) {
+      container.textContent = "All months paid.";
+      return;
+    }
+    var list = document.createElement("ul");
+    list.style.margin = "8px 0 0 20px";
+    list.style.lineHeight = "1.6";
+    unpaid.forEach(function(month) {
+      var li = document.createElement("li");
+      li.textContent = month;
+      list.appendChild(li);
+    });
+    container.appendChild(list);
+
+    var btnStudent = document.createElement("button");
+    btnStudent.className = "action-edit";
+    btnStudent.textContent = "WhatsApp student";
+    btnStudent.onclick = function() { whatsAppNonPaymentReport("student"); };
+
+    var btnParent = document.createElement("button");
+    btnParent.className = "action-edit";
+    btnParent.textContent = "WhatsApp parent";
+    btnParent.onclick = function() { whatsAppNonPaymentReport("parent"); };
+
+    actions.appendChild(btnStudent);
+    actions.appendChild(btnParent);
+    actions.style.display = "flex";
+  }
+
+  function normalizeWhatsAppDigits(raw) {
+    var digits = String(raw || "").replace(/[^\d]/g, "");
+    if (!digits) return "";
+    if (digits.length === 8) digits = "230" + digits;
+    return digits;
+  }
+
+  function buildNonPaymentWhatsAppMessage(student) {
+    var batch = state.selectedBatch;
+    var batchLabel = batch ? batch.name : "your class";
+    var unpaid = getUnpaidMonthsForStudent(student);
+    var lines = [
+      "Tuition reminder — " + batchLabel,
+      "",
+      "Student: " + student.studentName,
+      "Unpaid months: " + unpaid.join(", "),
+      "",
+      "Please arrange payment at your earliest convenience. Thank you."
+    ];
+    return lines.join("\n");
+  }
+
+  function openWhatsAppWithMessage(phoneRaw, message) {
+    var digits = normalizeWhatsAppDigits(phoneRaw);
+    if (!digits) {
+      showToast("WhatsApp number invalid or missing", "error");
+      return;
+    }
+    var url = "https://wa.me/" + digits + "?text=" + encodeURIComponent(message);
+    window.open(url, "_blank");
+  }
+
+  function whatsAppNonPaymentReport(recipient) {
+    var student = state.nonPaymentStudent;
+    if (!student) {
+      showToast("Select a student first", "error");
+      return;
+    }
+    var unpaid = getUnpaidMonthsForStudent(student);
+    if (!unpaid.length) {
+      showToast("No unpaid months to report", "error");
+      return;
+    }
+    var message = buildNonPaymentWhatsAppMessage(student);
+    if (recipient === "student") {
+      if (!student.studentWhatsapp) {
+        showToast("No student WhatsApp for this student", "error");
+        return;
+      }
+      openWhatsAppWithMessage(student.studentWhatsapp, message);
+      return;
+    }
+    if (!student.parentWhatsapp) {
+      showToast("No parent WhatsApp for this student", "error");
+      return;
+    }
+    openWhatsAppWithMessage(student.parentWhatsapp, message);
+  }
+
+  function onNonPaymentStudentChange() {
+    var select = document.getElementById("nonpay-student");
+    var idx = select.value;
+    if (idx === "") {
+      renderNonPaymentMonths(null);
+      return;
+    }
+    var student = state.students[parseInt(idx, 10)];
+    renderNonPaymentMonths(student || null);
+  }
+
+  function showNonPayment() {
+    if (!state.selectedBatch) {
+      showToast("Open a batch first", "error");
+      return;
+    }
+    document.getElementById("nonpay-batch-meta").textContent =
+      state.selectedBatch.name + " • " + state.selectedBatch.day + " • " + state.selectedBatch.time;
+    renderNonPaymentMonths(null);
+    loadStudents(true)
+      .then(function() {
+        populateNonPaymentStudentSelect();
+        showScreen("non-payment");
+      })
+      .catch(function() {
+        showToast("Failed to load students for non-payment report", "error");
+      });
   }
 
   function renderMonthGrid() {
