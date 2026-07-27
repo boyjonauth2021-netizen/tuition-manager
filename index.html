@@ -1132,7 +1132,9 @@
   }
 
   function getUnpaidMonthsForStudent(student) {
-    return MONTHS.filter(function(month) {
+    var currentMonthIndex = new Date().getMonth(); // 0 = January … 11 = December
+    return MONTHS.filter(function(month, idx) {
+      if (idx > currentMonthIndex) return false;
       return (student.payments[month] || "Not Paid") !== "Paid";
     });
   }
