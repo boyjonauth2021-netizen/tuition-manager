@@ -5,6 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Tuition App">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="icon" href="icons/icon-192.png">
+<meta name="theme-color" content="#1a1a2e">
 <title>Tuition Manager</title>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -234,7 +240,7 @@
 <div id="login-screen">
   <div class="login-title">Tuition Manager</div>
   <div class="login-sub">Manage batches, students and fee status in Google Sheets.</div>
-  <button class="btn-google" onclick="signIn()">Sign in with Google</button>
+  <button class="btn-google" id="btn-login" onclick="signIn()" disabled>Loading Google…</button>
 </div>
 
 <div id="main-app" class="hidden">
@@ -405,6 +411,9 @@
 
   var accessToken = null;
   var tokenClient = null;
+  var signingIn = false;
+  var gisReady = false;
+  var refreshingToken = null;
   var state = {
     user: null,
     sheetId: null,
@@ -419,25 +428,163 @@
   var BATCH_HEADERS = ["Batch Name", "Day", "Time", "Fees"];
   var STUDENT_HEADERS = ["Student Name", "Student WhatsApp", "Parent Name", "Parent WhatsApp", "Day", "Time", "Fees", "Updated At"].concat(MONTHS);
 
+  function setLoginBusy(busy, label) {
+    var btn = document.getElementById("btn-login");
+    if (!btn) return;
+    btn.disabled = !!busy || !gisReady;
+    btn.textContent = label || (gisReady ? "Sign in with Google" : "Loading Google…");
+  }
+
+  function waitForGis(timeoutMs) {
+    return new Promise(function(resolve, reject) {
+      var start = Date.now();
+      (function check() {
+        if (window.google && google.accounts && google.accounts.oauth2) {
+          resolve();
+          return;
+        }
+        if (Date.now() - start > (timeoutMs || 15000)) {
+          reject(new Error("Google sign-in failed to load. Refresh and try again."));
+          return;
+        }
+        setTimeout(check, 50);
+      })();
+    });
+  }
+
+  function initTokenClient() {
+    if (tokenClient) return tokenClient;
+    tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: CLIENT_ID,
+      scope: SCOPES,
+      callback: function() {}
+    });
+    return tokenClient;
+  }
+
+  function requestToken(optPrompt) {
+    return new Promise(function(resolve, reject) {
+      try {
+        initTokenClient();
+        tokenClient.callback = function(resp) {
+          if (!resp || resp.error) {
+            reject(new Error((resp && resp.error) || "Sign in failed"));
+            return;
+          }
+          resolve(resp.access_token);
+        };
+        var opts = {};
+        if (optPrompt === "") opts.prompt = "";
+        else if (optPrompt) opts.prompt = optPrompt;
+        tokenClient.requestAccessToken(opts);
+      } catch (err) {
+        reject(err);
+      }
+    });
+  }
+
+  function fetchUserInfo(token) {
+    return fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+      headers: { Authorization: "Bearer " + token }
+    }).then(function(r) {
+      if (!r.ok) throw new Error("Invalid or expired session");
+      return r.json();
+    }).then(function(user) {
+      if (!user || !user.email) throw new Error("Cannot fetch user profile");
+      return user;
+    });
+  }
+
+  function saveAuth(token, user) {
+    accessToken = token;
+    state.user = user;
+    localStorage.setItem(AUTH_TOKEN_KEY, token);
+    localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user));
+  }
+
+  function clearAuth() {
+    accessToken = null;
+    localStorage.removeItem(AUTH_TOKEN_KEY);
+    localStorage.removeItem(AUTH_USER_KEY);
+  }
+
+  function ensureFreshToken() {
+    if (refreshingToken) return refreshingToken;
+    refreshingToken = requestToken("")
+      .then(function(token) {
+        accessToken = token;
+        localStorage.setItem(AUTH_TOKEN_KEY, token);
+        return token;
+      })
+      .finally(function() {
+        refreshingToken = null;
+      });
+    return refreshingToken;
+  }
+
+  function restoreSession() {
+    var savedToken = localStorage.getItem(AUTH_TOKEN_KEY);
+    var savedUser = localStorage.getItem(AUTH_USER_KEY);
+    if (!savedToken || !savedUser) return Promise.resolve(false);
+
+    var cachedUser;
+    try {
+      cachedUser = JSON.parse(savedUser);
+    } catch (err) {
+      clearAuth();
+      return Promise.resolve(false);
+    }
+
+    return fetchUserInfo(savedToken)
+      .then(function(user) {
+        saveAuth(savedToken, user);
+        return true;
+      })
+      .catch(function() {
+        // Token expired — try silent refresh (no consent popup when already granted)
+        return waitForGis()
+          .then(function() {
+            return ensureFreshToken();
+          })
+          .then(function(token) {
+            return fetchUserInfo(token).then(function(user) {
+              saveAuth(token, user);
+              return true;
+            });
+          })
+          .catch(function() {
+            clearAuth();
+            return false;
+          });
+      });
+  }
+
   window.onload = function() {
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("./sw.js").catch(function() {});
+    }
+
     var params = new URLSearchParams(window.location.search);
     if (params.get("mode") === "student") {
       initStudentPortal();
       return;
     }
-    var savedToken = localStorage.getItem(AUTH_TOKEN_KEY);
-    var savedUser = localStorage.getItem(AUTH_USER_KEY);
-    if (savedToken && savedUser) {
-      try {
-        accessToken = savedToken;
-        state.user = JSON.parse(savedUser);
-        bootApp();
-      } catch (err) {
-        // Recover gracefully if browser storage has stale/corrupt auth JSON.
-        localStorage.removeItem(AUTH_TOKEN_KEY);
-        localStorage.removeItem(AUTH_USER_KEY);
-      }
-    }
+
+    waitForGis()
+      .then(function() {
+        gisReady = true;
+        initTokenClient();
+        setLoginBusy(false);
+        return restoreSession();
+      })
+      .then(function(ok) {
+        if (ok) bootApp();
+      })
+      .catch(function(err) {
+        gisReady = false;
+        setLoginBusy(true, "Google unavailable — refresh");
+        showToast(err.message || "Google sign-in unavailable", "error");
+      });
   };
 
   function signIn() {
@@ -445,26 +592,28 @@
       showToast("Set CLIENT_ID in code first.", "error");
       return;
     }
-    tokenClient = google.accounts.oauth2.initTokenClient({
-      client_id: CLIENT_ID,
-      scope: SCOPES,
-      callback: function(resp) {
-        if (resp.error) { showToast("Sign in failed", "error"); return; }
-        accessToken = resp.access_token;
-        localStorage.setItem(AUTH_TOKEN_KEY, accessToken);
-        fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
-          headers: { Authorization: "Bearer " + accessToken }
-        })
-        .then(function(r) { return r.json(); })
-        .then(function(user) {
-          state.user = user;
-          localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user));
+    if (!gisReady) {
+      showToast("Google is still loading…", "error");
+      return;
+    }
+    if (signingIn) return;
+    signingIn = true;
+    setLoginBusy(true, "Signing in…");
+
+    requestToken()
+      .then(function(token) {
+        return fetchUserInfo(token).then(function(user) {
+          saveAuth(token, user);
+          signingIn = false;
+          setLoginBusy(false);
           bootApp();
-        })
-        .catch(function() { showToast("Cannot fetch user profile", "error"); });
-      }
-    });
-    tokenClient.requestAccessToken();
+        });
+      })
+      .catch(function(err) {
+        signingIn = false;
+        setLoginBusy(false);
+        showToast((err && err.message) || "Sign in failed", "error");
+      });
   }
 
   function bootApp() {
@@ -478,19 +627,26 @@
         loadBatches();
       })
       .catch(function(err) {
-        showToast("Cannot prepare your sheet: " + (err && err.message ? err.message : "unknown error"), "error");
+        var msg = (err && err.message) ? err.message : "unknown error";
+        if (/invalid|expired|unauthorized|401|403/i.test(msg)) {
+          clearAuth();
+          document.getElementById("main-app").classList.add("hidden");
+          document.getElementById("login-screen").classList.remove("hidden");
+          showToast("Session expired — please sign in again", "error");
+          return;
+        }
+        showToast("Cannot prepare your sheet: " + msg, "error");
         showScreen("setup");
       });
   }
 
   function signOut() {
-    localStorage.removeItem(AUTH_TOKEN_KEY);
-    localStorage.removeItem(AUTH_USER_KEY);
-    accessToken = null;
+    clearAuth();
     state = { user: null, sheetId: null, batches: [], selectedBatch: null, students: [], editingStudentRow: null, selectedMonth: "January" };
     closeMenu();
     document.getElementById("main-app").classList.add("hidden");
     document.getElementById("login-screen").classList.remove("hidden");
+    setLoginBusy(false);
     showToast("Signed out", "success");
   }
 
@@ -1265,24 +1421,38 @@
   function apiRequest(url, options) {
     options = options || {};
     if (!accessToken) return Promise.reject(new Error("Not signed in"));
-    options.headers = Object.assign({
-      Authorization: "Bearer " + accessToken,
-      "Content-Type": "application/json"
-    }, options.headers || {});
-    return fetch(url, options)
-      .then(function(r) {
-        return r.text().then(function(text) {
-          var data = {};
-          if (text) {
-            try { data = JSON.parse(text); } catch (e) {
-              throw new Error("Sheets API returned non-JSON (HTTP " + r.status + "). Sign out and sign in again.");
+
+    function once(token, allowRetry) {
+      var opts = Object.assign({}, options);
+      opts.headers = Object.assign({
+        Authorization: "Bearer " + token,
+        "Content-Type": "application/json"
+      }, options.headers || {});
+      return fetch(url, opts)
+        .then(function(r) {
+          return r.text().then(function(text) {
+            var data = {};
+            if (text) {
+              try { data = JSON.parse(text); } catch (e) {
+                throw new Error("Sheets API returned non-JSON (HTTP " + r.status + "). Sign out and sign in again.");
+              }
             }
-          }
-          if (data.error) throw new Error(data.error.message || "API error");
-          if (!r.ok) throw new Error("HTTP " + r.status + (data && data.error && data.error.message ? ": " + data.error.message : ""));
-          return data;
+            var status = r.status;
+            var apiMsg = (data && data.error && data.error.message) ? data.error.message : "";
+            var unauthorized = status === 401 || status === 403 || /invalid|expired|unauth/i.test(apiMsg);
+            if (unauthorized && allowRetry) {
+              return ensureFreshToken().then(function(newToken) {
+                return once(newToken, false);
+              });
+            }
+            if (data.error) throw new Error(apiMsg || "API error");
+            if (!r.ok) throw new Error("HTTP " + status + (apiMsg ? ": " + apiMsg : ""));
+            return data;
+          });
         });
-      });
+    }
+
+    return once(accessToken, true);
   }
 
   function escapeHtml(str) {

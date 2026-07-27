@@ -1,80 +1,30 @@
-# Tuition Manager (Web App)
+# Tuition Manager (Latest)
 
-A mobile-friendly web app to manage tuition batches, student details, and payment status using Google Sheets as the backend.
-
-## Features
-
-- Google sign-in (OAuth)
-- First-time batch setup:
-  - number of batches
-  - batch name, day, and time
-- Auto-creates tabs in `MasterTuitionSheet`
-- Add, edit, and delete students per batch
-- Required fields:
-  - Student Name
-  - Student WhatsApp
-- Optional fields:
-  - Parent Name
-  - Parent WhatsApp
-- Toggle fee status: `Paid` / `Not Paid`
+Canonical app folder. Deploy the **contents** of this folder to GitHub Pages (or any static host).
 
 ## Files
 
-- `index.html` - Full single-file application (HTML/CSS/JS)
+| File | Purpose |
+|------|---------|
+| `index.html` | Main app (login + batches + payments + student portal) |
+| `manifest.json` | PWA install manifest |
+| `sw.js` | Service worker (enables Install app) |
+| `icons/` | App icons (192 / 512) from your Tuition App artwork |
+| `student-intake.gs` | Google Apps Script for student self-registration |
+| `MasterTuitionSheet - boyjonauth2024@gmail.com.xlsx` | Latest sheet export |
+| `index-tuition-manager.html` | Older backup copy |
 
-## Configuration
+## Deploy notes
 
-In `index.html`, set:
+1. Upload **this folder’s contents** so `index.html` is the site entry (or host under a subpath).
+2. In Google Cloud OAuth client, add your Pages origin under **Authorized JavaScript origins**.
+3. `STUDENT_INTAKE_ENDPOINT` in `index.html` must point to your deployed Apps Script `/exec` URL.
+4. Open the live HTTPS URL on phone/desktop → browser should offer **Install app** / Add to Home Screen (icon = Tuition App).
 
-```js
-var CLIENT_ID = "YOUR_WEB_CLIENT_ID.apps.googleusercontent.com";
-```
+## Login behaviour
 
-`SHEET_ID` is no longer required.
+- Waits for Google Identity Services before enabling Sign in.
+- Restores session from `localStorage`, validates token, silently refreshes if expired.
+- On Sheets API 401/403, refreshes token once and retries.
 
-The app now creates/uses one personal sheet per user:
-
-- `MasterTuitionSheet - teacher1@gmail.com`
-- `MasterTuitionSheet - teacher2@gmail.com`
-
-## Google Cloud Setup
-
-1. Open Google Cloud Console.
-2. Select/create a project.
-3. Enable **Google Sheets API**.
-4. Enable **Google Drive API** (used to find each user's existing sheet).
-4. Configure **OAuth consent screen**.
-5. Create **OAuth Client ID** (type: Web application).
-6. Add Authorized JavaScript origin:
-   - `https://boyjonauth2021-netizen.github.io`
-7. Copy the client ID into `CLIENT_ID`.
-
-## Google Sheet Setup
-
-No manual sheet creation needed.
-
-On first login for each teacher, the app creates a personal sheet automatically and manages these tabs:
-- `Batches`
-- one tab per batch name
-
-## Deploy on GitHub Pages
-
-1. Upload `index.html` and `README.md` to your repo root.
-2. Go to repository **Settings -> Pages**.
-3. Source: **Deploy from branch**.
-4. Branch: `main`, folder: `/ (root)`.
-5. Save.
-
-App URL:
-
-`https://boyjonauth2021-netizen.github.io/tuition-manager/`
-
-## Usage Flow
-
-1. Sign in with Google.
-2. Enter number of batches.
-3. Enter each batch name, day, and time.
-4. Save setup.
-5. Open a batch.
-6. Add students and update `Paid / Not Paid`.
-
+Do **not** confuse this with the root `index.html` of the parent repo (pseudocode IDE).
